@@ -12,17 +12,13 @@ class BoardWrapper
     public:
         BoardWrapper() {}
         BoardWrapper(const BoardWrapper& boardWrapper) 
-            { (*this) = boardWrapper; }
-        BoardWrapper& operator=(const BoardWrapper& boardWrapper)
-        { 
-            memcpy(this, &boardWrapper, sizeof(BoardWrapper)); 
-            return *this;
-        }
+            { memcpy(this, &boardWrapper, sizeof(BoardWrapper)); }
         IntVector Evaluate(int maxNodeNum = 100000);
         IntVector GetActions(int ply, int sp, int it) const;
         void Move(int act);
         bool IsOver() const { return board.IsOver(); }
-        StoneType Winner() const { return board.Winner(); }
+        int Winner() const { return static_cast<int>(board.Winner()); }
+        int Player() const { return static_cast<int>(board.GetPlayer()); }
         U64 Key() const { return board.Key(); }
 
     private:
@@ -38,7 +34,12 @@ void BoardWrapper::Move(int act)
 {
     UC action = static_cast<UC>(act);
     board.Move(action);
-    if (vctNode) vctNode = vctNode->Next(action);
+    if (vctNode)
+    {
+        PNSVCTNode* tempNode = vctNode;
+        vctNode = vctNode->Next(action);
+        if (!vctNode) delete tempNode;
+    } 
 }
 
 inline
@@ -53,7 +54,7 @@ IntVector BoardWrapper::Evaluate(int maxNodeNum)
         if (vctNode) attacker = player;
     }
     IntVector vec;
-    if (player == attacker)
+    if (player == attacker && vctNode)
     {
         vec.push_back(static_cast<int>(vctNode->GetAttackAction()));
         return vec;
@@ -74,7 +75,8 @@ IntVector BoardWrapper::Evaluate(int maxNodeNum)
         FilterReplicatedActions(actions);
         return UCsToInts(actions);
     }
-    if (board.Evaluate(player, actions)) return UCsToInts(actions);
+    if (POSITIVE == board.Evaluate(player, actions)) 
+        return UCsToInts(actions);
     else return vec;
 }
 
@@ -94,9 +96,9 @@ IntVector BoardWrapper::GetActions(int ply, int sp, int it) const
 inline
 IntVector BoardWrapper::UCsToInts(UC* UCs)
 {
-    IntVector vec;
+    IntVector vec(UCs[0], 0);
     for (int i = 1; i <= UCs[0]; i++) 
-        vec.push_back(static_cast<int>(UCs[i]));
+        vec[i - 1] = static_cast<int>(UCs[i]);
     return vec;
 }
 

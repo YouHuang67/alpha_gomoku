@@ -6,7 +6,7 @@ sources = ['board_wrap.cxx', 'board.cpp',
 
 module = Extension(
     '_board', sources=sources, 
-    extra_compile_args=['-O3'], 
+    extra_compile_args=['/O2'], 
     language='c++'
 )
 

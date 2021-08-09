@@ -279,6 +279,9 @@ class BoardWrapper(object):
     def Winner(self):
         return _board.BoardWrapper_Winner(self)
 
+    def Player(self):
+        return _board.BoardWrapper_Player(self)
+
     def Key(self):
         return _board.BoardWrapper_Key(self)
     __swig_destroy__ = _board.delete_BoardWrapper
