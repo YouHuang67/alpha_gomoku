@@ -62,6 +62,7 @@ class PNSVCTNode
         UC GetAttackAction() const;
 
     private:
+        PNSType type;
         UC* actions = nullptr;
         PNSVCTNode* children = nullptr;
         void SetChildren(PNSNode* node);
@@ -297,6 +298,7 @@ PNSNode* PNSNode::GetNode(U64 k, PNSType t, int l, int pn, int dn)
 inline
 void PNSVCTNode::SetChildren(PNSNode* node)
 {
+    type = node->type;
     if (!node->ActionsNum()) return;
     UC* pnsActions = node->Actions();
     if (OR == node->type)
@@ -345,11 +347,17 @@ PNSVCTNode* PNSVCTNode::Next(UC act)
 inline
 UC PNSVCTNode::GetAttackAction() const
 {
-    if (!actions || actions[0] > 1)
+    // if (!actions || actions[0] > 1)
+    // {
+    //     cout << "error: no attack action" << endl;
+    //     exit(0);
+    // }
+    if (AND == type)
     {
         cout << "error: no attack action" << endl;
         exit(0);
     }
+    if (!actions) return 0xff;
     return actions[1];
 }
 

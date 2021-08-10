@@ -24,6 +24,7 @@ class BoardWrapper
     private:
         VCTBoard board;
         StoneType attacker = EMPTY;
+        PNSVCTNode* vctRoot = nullptr;
         PNSVCTNode* vctNode = nullptr;
         static IntVector UCsToInts(UC* UCs);
 
@@ -36,9 +37,12 @@ void BoardWrapper::Move(int act)
     board.Move(action);
     if (vctNode)
     {
-        PNSVCTNode* tempNode = vctNode;
         vctNode = vctNode->Next(action);
-        if (!vctNode) delete tempNode;
+        if (!vctNode)
+        {
+            delete vctRoot;
+            vctRoot = nullptr;
+        } 
     } 
 }
 
@@ -50,14 +54,19 @@ IntVector BoardWrapper::Evaluate(int maxNodeNum)
     actions[0] = 0;
     if (EMPTY == attacker)
     {
-        vctNode = PNSVCT(board, player, maxNodeNum);
-        if (vctNode) attacker = player;
+        vctRoot = PNSVCT(board, player, maxNodeNum);
+        vctNode = vctRoot;
+        if (vctRoot) attacker = player;
     }
     IntVector vec;
     if (player == attacker && vctNode)
     {
-        vec.push_back(static_cast<int>(vctNode->GetAttackAction()));
-        return vec;
+        UC action = vctNode->GetAttackAction();
+        if (action != 0xff)
+        {   
+            vec.push_back(static_cast<int>(action));
+            return vec;
+        }
     }
     if (board.GetActions(player, OPEN_FOUR, true, actions))
         return UCsToInts(actions);

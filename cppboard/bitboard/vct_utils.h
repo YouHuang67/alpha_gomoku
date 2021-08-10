@@ -128,6 +128,18 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
         U32 threeXorTwo = threeOrActions ^ openTwoOrActions;
         U32 threeTwo = threeOrTwo ^ threeXorTwo;
         if (!threeTwo) continue;
+        U32 threeTwoCodedActions[4] = {
+            threeCodedActions[0] ^ openTwoCodedActions[0], 
+            threeCodedActions[1] ^ openTwoCodedActions[1], 
+            threeCodedActions[2] ^ openTwoCodedActions[2], 
+            threeCodedActions[3] ^ openTwoCodedActions[3]
+        };
+        threeOrTwo = threeTwoCodedActions[0] | threeTwoCodedActions[1] |
+                     threeTwoCodedActions[2] | threeTwoCodedActions[3];
+        threeXorTwo = threeTwoCodedActions[0] ^ threeTwoCodedActions[1] ^
+                      threeTwoCodedActions[2] ^ threeTwoCodedActions[3];
+        threeTwo = threeOrTwo ^ threeXorTwo;
+        if (!threeTwo) continue;
         UC* handle = actionTable[threeTwo];
         for (int i = 1; i <= handle[0]; i++)
             actions[++actions[0]] = ActionFlatten(row, handle[i]);

@@ -14,7 +14,8 @@ def main():
     board = Board(actions)
     print(board)
     while not board.is_over:
-        action = random.choice(board.evaluate())
+        actions = board.evaluate()
+        action = random.choice(actions)
         board.move(action)
         print(board)
         print(action)
