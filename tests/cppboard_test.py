@@ -4,6 +4,7 @@ import random
 
 sys.path.append(os.path.realpath('../..'))
 from alpha_gomoku.cppboard import Board
+from alpha_gomoku.tests.test_utils import show_vct
 
 
 def main():
@@ -12,13 +13,8 @@ def main():
     actions = [(act // Board.BOARD_SIZE, act % Board.BOARD_SIZE)
                 for act in actions]
     board = Board(actions)
-    print(board)
-    while not board.is_over:
-        actions = board.evaluate()
-        action = random.choice(actions)
-        board.move(action)
-        print(board)
-        print(action)
+    board.evaluate()
+    show_vct(board)
 
 
 if __name__ == '__main__':
