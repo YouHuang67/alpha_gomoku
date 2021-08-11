@@ -276,6 +276,9 @@ class BoardWrapper(object):
     def IsOver(self):
         return _board.BoardWrapper_IsOver(self)
 
+    def Attacker(self):
+        return _board.BoardWrapper_Attacker(self)
+
     def Winner(self):
         return _board.BoardWrapper_Winner(self)
 

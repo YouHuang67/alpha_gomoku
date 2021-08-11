@@ -7576,6 +7576,29 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_BoardWrapper_Attacker(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  BoardWrapper *arg1 = (BoardWrapper *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  int result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_BoardWrapper, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "BoardWrapper_Attacker" "', argument " "1"" of type '" "BoardWrapper const *""'"); 
+  }
+  arg1 = reinterpret_cast< BoardWrapper * >(argp1);
+  result = (int)((BoardWrapper const *)arg1)->Attacker();
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_BoardWrapper_Winner(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   BoardWrapper *arg1 = (BoardWrapper *) 0 ;
@@ -7738,6 +7761,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "BoardWrapper_GetActions", _wrap_BoardWrapper_GetActions, METH_VARARGS, NULL},
 	 { "BoardWrapper_Move", _wrap_BoardWrapper_Move, METH_VARARGS, NULL},
 	 { "BoardWrapper_IsOver", _wrap_BoardWrapper_IsOver, METH_O, NULL},
+	 { "BoardWrapper_Attacker", _wrap_BoardWrapper_Attacker, METH_O, NULL},
 	 { "BoardWrapper_Winner", _wrap_BoardWrapper_Winner, METH_O, NULL},
 	 { "BoardWrapper_Player", _wrap_BoardWrapper_Player, METH_O, NULL},
 	 { "BoardWrapper_Key", _wrap_BoardWrapper_Key, METH_O, NULL},

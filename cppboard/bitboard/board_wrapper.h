@@ -17,6 +17,7 @@ class BoardWrapper
         IntVector GetActions(int ply, int sp, int it) const;
         void Move(int act);
         bool IsOver() const { return board.IsOver(); }
+        int Attacker() const { return static_cast<int>(attacker); }
         int Winner() const { return static_cast<int>(board.Winner()); }
         int Player() const { return static_cast<int>(board.GetPlayer()); }
         U64 Key() const { return board.Key(); }
@@ -41,6 +42,7 @@ void BoardWrapper::Move(int act)
         if (!vctNode)
         {
             delete vctRoot;
+            attacker = EMPTY;
             vctRoot = nullptr;
         } 
     } 

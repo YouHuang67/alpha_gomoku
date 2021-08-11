@@ -336,9 +336,9 @@ PNSVCTNode* PNSVCTNode::Next(UC act)
         if (actions[index] == act) break;
     if (index > actions[0])
     {
-        cout << "not found the action: (";
-        cout << static_cast<int>(act >> 4) << " ";
-        cout << static_cast<int>(act & 15) << ") in the PNS vct tree";
+        // cout << "not found the action: (";
+        // cout << static_cast<int>(act >> 4) << " ";
+        // cout << static_cast<int>(act & 15) << ") in the PNS vct tree";
         return nullptr;
     }
     return children + (index - 1);

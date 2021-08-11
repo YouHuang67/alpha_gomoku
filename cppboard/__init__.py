@@ -13,44 +13,48 @@ class Board(object):
     THREE = 4
     OPEN_TWO = 5
 
-    def __init__(self, history=None, cpp_board=None):
-        if cpp_board is None:
-            self.cpp_board = BoardWrapper()
+    def __init__(self, history=None, cppboard=None):
+        if cppboard is None:
+            self.cppboard = BoardWrapper()
         else:
-            self.cpp_board = cpp_board
+            self.cppboard = cppboard
         self.history = []
         if history is not None:
             for act in history:
                 self.move(act)
 
     def move(self, action):
-        self.cpp_board.Move(self.action_flatten(*action))
+        self.cppboard.Move(self.action_flatten(*action))
         self.history.append(action)
 
     def evaluate(self, max_node_num=100000):
-        actions = self.cpp_board.Evaluate(max_node_num)
+        actions = self.cppboard.Evaluate(max_node_num)
         return [self.action_unflatten(act) for act in actions]
 
     def copy(self):
-        board_copy = self.__class__(cpp_board=self.cpp_board)
+        board_copy = self.__class__(cppboard=self.cppboard)
         board_copy.history = [act for act in self.history]
         return board_copy
 
     @property
+    def attacker(self):
+        return self.cppboard.Attacker()
+
+    @property
     def is_over(self):
-        return self.cpp_board.IsOver()
+        return self.cppboard.IsOver()
 
     @property
     def player(self):
-        return self.cpp_board.Player()
+        return self.cppboard.Player()
 
     @property
     def winner(self):
-        return self.cpp_board.Winner()
+        return self.cppboard.Winner()
 
     @property
     def key(self):
-        return self.cpp_board.Key()
+        return self.cppboard.Key()
 
     @staticmethod
     def action_flatten(row, col):
