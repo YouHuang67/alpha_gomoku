@@ -1,12 +1,12 @@
 import os
 import sys
+import time
 
 sys.path.append(os.path.realpath('../..'))
 from alpha_gomoku.cppboard import Board
 from alpha_gomoku.datasets import piskvork
 from alpha_gomoku.datasets import vct
 from alpha_gomoku.tests.test_utils import show_vct
-import time
 
 
 def main():
@@ -14,8 +14,8 @@ def main():
     actions = piskvork.load_piskvork_record(path)
     vct_actions = vct.get_vct_actions(actions)
     if len(vct_actions):
-        print('vct action found')
         step, _ = vct_actions[0]
+        print('vct action found at step {}'.format(step))
         board = Board(actions[:step])
         start = time.time()
         board.evaluate()
