@@ -54,7 +54,14 @@ class Board(object):
 
     @property
     def key(self):
-        return self.cppboard.Key()
+        key = 0
+        for k in self.cppboard.Key():
+            key = (key << 16) ^ k
+        return key
+
+    @property
+    def vector(self):
+        return self.cppboard.BoardVector()
 
     @staticmethod
     def action_flatten(row, col):

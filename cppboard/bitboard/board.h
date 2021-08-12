@@ -42,6 +42,8 @@ class Board
         inline int GetStep() const { return bit.GetStep(); }
         inline static U64 UpdateZobristKey(U64 key, StoneType ply, UC act)
             { return key ^ zobristTable[static_cast<int>(ply)][act]; }
+        inline U32 GetLine(UC act, int dir) const
+            { return bit.GetLine(act, static_cast<Direction>(dir)); }
 
     protected:
         static LineShapeInitialization* lsinit;

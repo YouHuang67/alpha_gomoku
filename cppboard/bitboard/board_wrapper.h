@@ -20,7 +20,8 @@ class BoardWrapper
         int Attacker() const { return static_cast<int>(attacker); }
         int Winner() const { return static_cast<int>(board.Winner()); }
         int Player() const { return static_cast<int>(board.GetPlayer()); }
-        U64 Key() const { return board.Key(); }
+        IntVector Key() const;
+        IntVector BoardVector() const;
 
     private:
         VCTBoard board;
@@ -110,6 +111,32 @@ IntVector BoardWrapper::UCsToInts(UC* UCs)
     IntVector vec(UCs[0], 0);
     for (int i = 1; i <= UCs[0]; i++) 
         vec[i - 1] = static_cast<int>(UCs[i]);
+    return vec;
+}
+
+inline
+IntVector BoardWrapper::Key() const
+{
+    U64 key = board.Key();
+    static const std::size_t blockNum = 4, blockSize = 16;
+    static const U64 blockMask = (1 << blockSize) - 1;
+    IntVector keyVector(4, 0);
+    for (int i = 0; i < blockNum; i++)
+        keyVector[i] = static_cast<int>((key >> (i * blockSize)) & blockMask);
+    return keyVector;
+}
+
+inline
+IntVector BoardWrapper::BoardVector() const
+{
+    IntVector vec(STONE_NUM, 0);
+    int index = 0;
+    for (int row = 0; row < BOARD_SIZE; row++)
+    {
+        U32 line = board.GetLine(static_cast<UC>(row) << 4, 0);
+        for (int col = 0; col < BOARD_SIZE; col++)
+            vec[index++] = (~(line >> (2 * col))) & MASK;
+    }
     return vec;
 }
 

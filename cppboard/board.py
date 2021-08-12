@@ -287,6 +287,9 @@ class BoardWrapper(object):
 
     def Key(self):
         return _board.BoardWrapper_Key(self)
+
+    def BoardVector(self):
+        return _board.BoardWrapper_BoardVector(self)
     __swig_destroy__ = _board.delete_BoardWrapper
 
 # Register BoardWrapper in _board:
