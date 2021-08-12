@@ -1,16 +1,15 @@
-import os
 import sys
 import time
+from pathlib import Path
 
-sys.path.append(os.path.realpath('../..'))
+sys.path.append(str(Path(__file__).parents[2]))
 from alpha_gomoku.cppboard import Board
 from alpha_gomoku.datasets import piskvork
 from alpha_gomoku.datasets import vct
 from alpha_gomoku.tests.test_utils import show_vct
 
 
-def main():
-    path = 'F:/repositories/gomocup/records/gomocup1/0x1-23(1).rec'
+def test_single_board(path):
     actions = piskvork.load_piskvork_record(path)
     vct_actions = vct.get_vct_actions(actions)
     if len(vct_actions):
@@ -23,6 +22,19 @@ def main():
         show_vct(board)
     else:
         print('not found vct action')
+
+
+def count_boards(root):
+    keys = []
+    for actions in piskvork.load_piskvork_records(root):
+        keys.append(Board(actions).key)
+    print(f'found {len(keys)} boards')
+    print(f'{len(set(keys))} different boards')
+
+
+def main():
+    # test_single_board('F:/repositories/gomocup/records/gomocup1/0x1-23(1).rec')
+    count_boards('F:/repositories/gomocup/records/')
 
 
 if __name__ == '__main__':

@@ -1,8 +1,6 @@
-import os
 import sys
-import random
 
-sys.path.append(os.path.realpath('../..'))
+sys.path.append(str(Path(__file__).parents[2]))
 from alpha_gomoku.cppboard import Board
 from alpha_gomoku.tests.test_utils import show_vct
 
