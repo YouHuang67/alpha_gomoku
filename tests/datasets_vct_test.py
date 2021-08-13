@@ -27,9 +27,13 @@ def test_single_board(path):
 def count_boards(root):
     keys = []
     for actions in piskvork.load_piskvork_records(root):
-        keys.append(Board(actions).key)
-    print(f'found {len(keys)} boards')
-    print(f'{len(set(keys))} different boards')
+        boards = [Board() for _ in range(8)]
+        for action in actions:
+            for board, act in zip(boards, Board.get_homogenous_actions(action)):
+                board.move(act)
+        keys.extend([board.key for board in boards])
+    print(f'found {len(keys) // 8} boards')
+    print(f'{len(set(keys)) // 8} different boards')
 
 
 def main():

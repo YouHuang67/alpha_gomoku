@@ -7690,6 +7690,29 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_BoardWrapper_HomogenousActions(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  int arg1 ;
+  int val1 ;
+  int ecode1 = 0 ;
+  PyObject *swig_obj[1] ;
+  IntVector result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  ecode1 = SWIG_AsVal_int(swig_obj[0], &val1);
+  if (!SWIG_IsOK(ecode1)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode1), "in method '" "BoardWrapper_HomogenousActions" "', argument " "1"" of type '" "int""'");
+  } 
+  arg1 = static_cast< int >(val1);
+  result = BoardWrapper::HomogenousActions(arg1);
+  resultobj = swig::from(static_cast< std::vector< int,std::allocator< int > > >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_delete_BoardWrapper(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   BoardWrapper *arg1 = (BoardWrapper *) 0 ;
@@ -7788,6 +7811,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "BoardWrapper_Player", _wrap_BoardWrapper_Player, METH_O, NULL},
 	 { "BoardWrapper_Key", _wrap_BoardWrapper_Key, METH_O, NULL},
 	 { "BoardWrapper_BoardVector", _wrap_BoardWrapper_BoardVector, METH_O, NULL},
+	 { "BoardWrapper_HomogenousActions", _wrap_BoardWrapper_HomogenousActions, METH_O, NULL},
 	 { "delete_BoardWrapper", _wrap_delete_BoardWrapper, METH_O, NULL},
 	 { "BoardWrapper_swigregister", BoardWrapper_swigregister, METH_O, NULL},
 	 { "BoardWrapper_swiginit", BoardWrapper_swiginit, METH_VARARGS, NULL},

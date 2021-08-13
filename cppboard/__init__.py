@@ -1,6 +1,8 @@
 from .board import BoardWrapper
 
+
 __all__ = ['Board']
+
 
 class Board(object):
     BOARD_SIZE = 15
@@ -62,6 +64,12 @@ class Board(object):
     @property
     def vector(self):
         return self.cppboard.BoardVector()
+
+    @staticmethod
+    def get_homogenous_actions(action):
+        action = Board.action_flatten(*action)
+        actions = BoardWrapper.HomogenousActions(action)
+        return [Board.action_unflatten(act) for act in actions]
 
     @staticmethod
     def action_flatten(row, col):

@@ -290,10 +290,17 @@ class BoardWrapper(object):
 
     def BoardVector(self):
         return _board.BoardWrapper_BoardVector(self)
+
+    @staticmethod
+    def HomogenousActions(act):
+        return _board.BoardWrapper_HomogenousActions(act)
     __swig_destroy__ = _board.delete_BoardWrapper
 
 # Register BoardWrapper in _board:
 _board.BoardWrapper_swigregister(BoardWrapper)
+
+def BoardWrapper_HomogenousActions(act):
+    return _board.BoardWrapper_HomogenousActions(act)
 
 
 

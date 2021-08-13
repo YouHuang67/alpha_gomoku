@@ -22,6 +22,7 @@ class BoardWrapper
         int Player() const { return static_cast<int>(board.GetPlayer()); }
         IntVector Key() const;
         IntVector BoardVector() const;
+        static IntVector HomogenousActions(int act);
 
     private:
         VCTBoard board;
@@ -29,6 +30,7 @@ class BoardWrapper
         PNSVCTNode* vctRoot = nullptr;
         PNSVCTNode* vctNode = nullptr;
         static IntVector UCsToInts(UC* UCs);
+        static void RotateAction90(int& row, int& col);
 
 };
 
@@ -139,5 +141,39 @@ IntVector BoardWrapper::BoardVector() const
     }
     return vec;
 }
+
+inline
+void BoardWrapper::RotateAction90(int& row, int& col)
+{
+    int temp = col;
+    col = BOARD_SIZE - 1 - row;
+    row = temp;
+}
+
+inline
+IntVector BoardWrapper::HomogenousActions(int act)
+{
+    IntVector vec(8, 0);
+    int index = 0;
+    int row, col;
+    ActionUnflatten(act, row, col);
+    vec[index++] = act;
+    RotateAction90(row, col);
+    for (int i = 0; i < 3; i++)
+    {
+        vec[index++] = ActionFlatten(row, col);
+        RotateAction90(row, col);
+    }
+    vec[index++] = ActionFlatten(BOARD_SIZE - 1 - row, col);
+    vec[index++] = ActionFlatten(row, BOARD_SIZE - 1 - col);
+    vec[index++] = ActionFlatten(col, row);
+    RotateAction90(row, col);
+    row = row + col;
+    col = row - col;
+    row = row - col;
+    for (int i = 0; i < 3; i++) RotateAction90(row, col);
+    vec[index++] = ActionFlatten(row, col);
+    return vec;
+}   
 
 #endif
