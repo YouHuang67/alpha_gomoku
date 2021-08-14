@@ -1,5 +1,6 @@
 import sys
 import time
+import random
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parents[2]))
@@ -36,9 +37,22 @@ def count_boards(root):
     print(f'{len(set(keys)) // 8} different boards')
 
 
+def test_piskvork_vct_actions(root):
+    vct_action_dataset = piskvork.PiskvorkVCTActions(root)
+    print(f'found {len(vct_action_dataset)} vct actions')
+    vct_action_dataset.save(Path(root) / 'vct_actions.json')
+    vct_action_dataset = piskvork.PiskvorkVCTActions()
+    vct_action_dataset.load(Path(root) / 'vct_actions.json')
+    index = random.randint(0, len(vct_action_dataset) - 1)
+    actions, action = vct_action_dataset[index]
+    print(Board(actions))
+    print(action)
+
+
 def main():
     # test_single_board('F:/repositories/gomocup/records/gomocup1/0x1-23(1).rec')
-    count_boards('F:/repositories/gomocup/records/')
+    # count_boards('F:/repositories/gomocup/records/')
+    test_piskvork_vct_actions('F:/repositories/gomocup/records/')
 
 
 if __name__ == '__main__':

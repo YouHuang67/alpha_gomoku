@@ -6,7 +6,7 @@
 #include "vct_utils.h"
 #include "node.h"
 
-const unsigned int PROOF_INF = 10000000;
+const U64 PROOF_INF = 10000000000000;
 
 enum PNSType { OR = 0, AND };
 
@@ -23,13 +23,15 @@ class PNSNode : public VCTNode<PNSNode>
         inline static int LeafCount() { return leafCount; }
         inline static void ResetLeafCount() { leafCount = 1; }
         inline static int MoveCount() { return moveCount; }
+        PNSNode* Next(UC act);
+        UC GetAttackAction() const;
 
     protected:
         U64 key;
         PNSType type;
         BoardValue value = NONE_VALUE;
         int level = 0;
-        int proofNum = 1, disproofNum = 1;
+        U64 proofNum = 1, disproofNum = 1;
         int mostProvingIndex = -1;
         static VCTBoard* boardPtr;
         static StoneType attacker;
@@ -42,7 +44,7 @@ class PNSNode : public VCTNode<PNSNode>
         static int moveCount;
         static PNSNode* GetRoot();
         static PNSNode* GetNode(U64 k, PNSType t, int l = 0, 
-                                int pn = 1, int dn = 1);
+                                U64 pn = 1, U64 dn = 1);
         void Evaluate();
         void SetProofAndDisproofNumber();
         PNSNode* Forward();
@@ -52,31 +54,11 @@ class PNSNode : public VCTNode<PNSNode>
 
 };
 
-class PNSVCTNode
-{
-    public:
-        PNSVCTNode() {};
-        PNSVCTNode(PNSNode* node) { SetChildren(node); }
-        ~PNSVCTNode();
-        PNSVCTNode* Next(UC act);
-        UC GetAttackAction() const;
-
-    private:
-        PNSType type;
-        UC* actions = nullptr;
-        PNSVCTNode* children = nullptr;
-        void SetChildren(PNSNode* node);
-
-};
-
 inline
-PNSVCTNode* PNSVCT(const Board& board, StoneType attacker, 
-                   int maxNodeNum = 1000000)
+PNSNode* PNSVCT(Board& board, StoneType attacker, int maxNodeNum = 1000000)
 {
     PNSNode::InitializeSearch();
-    PNSNode* rootPtr = PNSNode::ProofNumberSearch(board, attacker, maxNodeNum);
-    if (rootPtr) return new PNSVCTNode(rootPtr);
-    else return nullptr; 
+    return PNSNode::ProofNumberSearch(board, attacker, maxNodeNum);
 }
 
 inline
@@ -164,8 +146,8 @@ PNSNode* PNSNode::Backward(PNSNode* leafNode)
     while (start < end)
     {
         PNSNode* nodePtr = nodeQueue[start++];
-        int proofNum = nodePtr->proofNum;
-        int disproofNum = nodePtr->disproofNum;
+        U64 proofNum = nodePtr->proofNum;
+        U64 disproofNum = nodePtr->disproofNum;
         nodePtr->SetProofAndDisproofNumber();
         if (!nodePtr->ParentsNum()) continue;
         if (proofNum != nodePtr->proofNum ||
@@ -282,7 +264,7 @@ void PNSNode::SetProofAndDisproofNumber()
 }
 
 inline
-PNSNode* PNSNode::GetNode(U64 k, PNSType t, int l, int pn, int dn)
+PNSNode* PNSNode::GetNode(U64 k, PNSType t, int l, U64 pn, U64 dn)
 {
     PNSNode* nodePtr = VCTNode<PNSNode>::GetNode();
     nodePtr->key = k;
@@ -296,69 +278,25 @@ PNSNode* PNSNode::GetNode(U64 k, PNSType t, int l, int pn, int dn)
 }
 
 inline
-void PNSVCTNode::SetChildren(PNSNode* node)
+PNSNode* PNSNode::Next(UC act)
 {
-    type = node->type;
-    if (!node->ActionsNum()) return;
-    UC* pnsActions = node->Actions();
-    if (OR == node->type)
-    {
-        int index = node->mostProvingIndex;
-        UC act = pnsActions[index + 1];
-        actions = new UC[2];
-        actions[0] = 1;
-        actions[1] = act;
-        children = new PNSVCTNode[1];
-        if (node->ChildrenNum())
-            children[0].SetChildren(node->Child(index));
-    }
-    else
-    {
-        unsigned int num = pnsActions[0];
-        actions = new UC[num + 1];
-        memcpy(actions, pnsActions, sizeof(UC) * (num + 1));
-        children = new PNSVCTNode[num];
-        for (int i = 0; i < num; i++) 
-            children[i].SetChildren(node->Child(i));
-    }
+    if (!ChildrenNum()) return nullptr;
+    if (OR == type)
+        if (act != Action(mostProvingIndex)) return nullptr;
+        else return Child(mostProvingIndex);
+    UC* pnsActions = Actions();
+    int index = 1, num = pnsActions[0];
+    for (; index <= num; index++)
+        if (act == pnsActions[index]) break;
+    if (index > pnsActions[0]) return nullptr;
+    else return Child(index - 1);
 }
 
 inline
-PNSVCTNode* PNSVCTNode::Next(UC act)
+UC PNSNode::GetAttackAction() const
 {
-    if (!actions)
-    {
-        // cout << "no children" << endl;
-        return nullptr;
-    }
-    int index = 1;
-    for (; index <= actions[0]; index++)
-        if (actions[index] == act) break;
-    if (index > actions[0])
-    {
-        // cout << "not found the action: (";
-        // cout << static_cast<int>(act >> 4) << " ";
-        // cout << static_cast<int>(act & 15) << ") in the PNS vct tree";
-        return nullptr;
-    }
-    return children + (index - 1);
-}
-
-inline
-UC PNSVCTNode::GetAttackAction() const
-{
-    // if (!actions || actions[0] > 1)
-    // {
-    //     cout << "error: no attack action" << endl;
-    //     exit(0);
-    // }
-    if (AND == type)
-    {
-        cout << "error: no attack action" << endl;
-        exit(0);
-    }
-    if (!actions) return 0xff;
-    return actions[1];
+    if (AND == type || !ActionsNum()) return 0xff;
+    return Action(mostProvingIndex);
 }
 
 #endif

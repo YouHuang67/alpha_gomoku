@@ -9,9 +9,3 @@ int PNSNode::forwardLevelNum;
 int PNSNode::backwardLevelNum;
 int PNSNode::leafCount;
 int PNSNode::moveCount;
-
-PNSVCTNode::~PNSVCTNode()
-{
-    if (actions) delete[] actions;
-    if (children) delete[] children;
-}

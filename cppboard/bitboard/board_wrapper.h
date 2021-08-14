@@ -27,8 +27,7 @@ class BoardWrapper
     private:
         VCTBoard board;
         StoneType attacker = EMPTY;
-        PNSVCTNode* vctRoot = nullptr;
-        PNSVCTNode* vctNode = nullptr;
+        PNSNode* vctNode = nullptr;
         static IntVector UCsToInts(UC* UCs);
         static void RotateAction90(int& row, int& col);
 
@@ -42,12 +41,7 @@ void BoardWrapper::Move(int act)
     if (vctNode)
     {
         vctNode = vctNode->Next(action);
-        if (!vctNode)
-        {
-            delete vctRoot;
-            attacker = EMPTY;
-            vctRoot = nullptr;
-        } 
+        if (!vctNode) attacker = EMPTY;
     } 
 }
 
@@ -59,9 +53,8 @@ IntVector BoardWrapper::Evaluate(int maxNodeNum)
     actions[0] = 0;
     if (EMPTY == attacker)
     {
-        vctRoot = PNSVCT(board, player, maxNodeNum);
-        vctNode = vctRoot;
-        if (vctRoot) attacker = player;
+        vctNode = PNSVCT(board, player, maxNodeNum);
+        if (vctNode) attacker = player;
     }
     IntVector vec;
     if (player == attacker && vctNode)
