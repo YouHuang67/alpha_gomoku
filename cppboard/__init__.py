@@ -6,6 +6,7 @@ __all__ = ['Board']
 
 class Board(object):
     BOARD_SIZE = 15
+    STONE_NUM = BOARD_SIZE ** 2
     BLACK = 0
     WHITE = 1
     EMPTY = 2
