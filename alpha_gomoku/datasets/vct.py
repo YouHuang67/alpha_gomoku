@@ -1,4 +1,4 @@
-from ..cppboard import Board
+from alpha_gomoku.cppboard import Board
 
 
 def get_vct_actions(actions, max_node_num=100000):

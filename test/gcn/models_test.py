@@ -1,10 +1,3 @@
-import os
-import sys
-from pathlib import Path
-
-import torch
-
-sys.path.append(str(Path(__file__).parents[3]))
 from alpha_gomoku.cppboard import Board
 from alpha_gomoku.gcn import models
 

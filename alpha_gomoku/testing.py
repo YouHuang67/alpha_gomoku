@@ -1,6 +1,6 @@
 import random
 
-from ..cppboard import Board
+from alpha_gomoku.cppboard import Board
 
 
 def show_vct(board):

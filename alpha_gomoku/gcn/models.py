@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .. import utils
-from ..cppboard import Board
+from alpha_gomoku import utils
+from alpha_gomoku.cppboard import Board
 
 
 class PlayerEmbedding(nn.Module):

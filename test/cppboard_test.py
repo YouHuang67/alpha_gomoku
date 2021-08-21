@@ -1,8 +1,5 @@
-import sys
-
-sys.path.append(str(Path(__file__).parents[2]))
 from alpha_gomoku.cppboard import Board
-from alpha_gomoku.tests.test_utils import show_vct
+from alpha_gomoku.testing import show_vct
 
 
 def main():
