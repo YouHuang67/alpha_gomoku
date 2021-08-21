@@ -1,4 +1,5 @@
 import os
+import json
 import random
 import numpy as np
 from pathlib import Path
@@ -12,6 +13,16 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 tolist = lambda x: x if isinstance(x, Iterable) else [x]
+
+
+def json_load(path):
+    with open(path, 'r') as json_file:
+        return json.load(json_file)
+    
+    
+def json_save(path, obj):
+    with open(path, 'w') as json_file:
+        json.dump(obj, json_file)
 
 
 def set_seed(seed):

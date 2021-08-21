@@ -1,4 +1,5 @@
 import json
+import random
 from tqdm import tqdm
 from pathlib import Path
 
@@ -22,13 +23,14 @@ def load_piskvork_records(root):
 
 class PiskvorkVCTActions(object):
 
-    def __init__(self, root=None):
+    def __init__(self, root=None, augmentation=True):
         if root is None:
             self.actions = []
             self.vct_actions = []
         else:
             self.actions, self.vct_actions = \
                 self.get_vct_actions_from_piskvork_records(root)
+        self.augmentation = augmentation
 
     def __len__(self):
         return len(self.vct_actions)
@@ -36,6 +38,13 @@ class PiskvorkVCTActions(object):
     def __getitem__(self, item):
         index, step, action = self.vct_actions[item]
         actions = self.actions[index]
+        if self.augmentation:
+            action_list = list(zip(*[
+                Board.get_homogenous_actions(act) for act in actions
+            ]))
+            index = random.choice(range(len(action_list)))
+            actions = action_list[index]
+            action = Board.get_homogenous_actions(action)[index]
         return actions[:step], action
 
     @staticmethod
