@@ -24,12 +24,18 @@ class VCTDataset(piskvork.PiskvorkVCTActions):
         embedding = self.embedding(Board(actions))[0]
         vct_action = vct_action[0] * Board.BOARD_SIZE + vct_action[1]
         return embedding, vct_action
+    
+    def split(self, ratio, shuffle=True):
+        return super(VCTDataset, self).split(
+            ratio, shuffle, embedding=self.embedding
+        )
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     # dataset
     parser.add_argument('--piskvork', type=str, default='F:/repositories/gomocup/records')
+    parser.add_argument('--split', type=float, default=0.75)
     # model
     parser.add_argument('--dim', type=int, default=128)
     parser.add_argument('--hidden_dim', type=int, default=128)
@@ -52,8 +58,12 @@ def main():
         dataset.load(vct_path)
     else:
         dataset = VCTDataset(embedding, piskvork_dir)
-    dataloader = DataLoader(
-        dataset, batch_size=args.batch_size, shuffle=True
+    train_set, test_set = dataset.split(args.split)
+    train_dataloader = DataLoader(
+        train_set, batch_size=args.batch_size, shuffle=True
+    )
+    test_dataloader = DataLoader(
+        test_set, batch_size=args.batch_size, shuffle=False
     )
     model = GraphConvolutionNetwork(args.dim, args.hidden_dim, args.block_num)
     optimizer = torch.optim.Adam(
@@ -62,12 +72,12 @@ def main():
         lr=args.lr, weight_decay=args.weight_decay
     )
     ce_loss = nn.CrossEntropyLoss()
-    total_loss = 0.0
-    total_acc = 0.0
-    sample_num = 0.0
-    model.train()
     for epoch in range(1, args.epochs + 1):
-        with tqdm(dataloader, desc=f'epoch {epoch}/{args.epochs}: ') as pbar:
+        total_loss = 0.0
+        total_acc = 0.0
+        sample_num = 0.0
+        model.train()
+        with tqdm(train_dataloader, desc=f'epoch {epoch}/{args.epochs}: ') as pbar:
             for boards, actions in pbar:
                 pred = model(boards)
                 loss = ce_loss(pred, actions)
@@ -81,6 +91,22 @@ def main():
                 info += f'loss: {total_loss/sample_num:.4f} '
                 info += f'acc: {total_acc/sample_num:.4f}'
                 pbar.set_description(info)
+        eval_loss = 0.0
+        eval_acc = 0.0
+        sample_num = 0.0
+        model.eval()
+        with tqdm(test_dataloader, desc=f'evalute: ') as pbar:
+            with torch.no_grad():
+                for boards, actions in pbar:
+                    pred = model(boards)
+                    loss = ce_loss(pred, actions)
+                    sample_num += pred.size(0)
+                    eval_loss += pred.size(0) * loss.item()
+                    eval_acc += (pred.argmax(-1) == actions.long()).sum()
+                    info = f'evalute: '
+                    info += f'loss: {eval_loss/sample_num:.4f} '
+                    info += f'acc: {eval_acc/sample_num:.4f}'
+                    pbar.set_description(info)
 
 
 if __name__ == '__main__':

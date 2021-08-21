@@ -1,5 +1,7 @@
 import json
 import random
+import numpy as np
+from torch import autograd
 from tqdm import tqdm
 from pathlib import Path
 
@@ -83,3 +85,21 @@ class PiskvorkVCTActions(object):
         self.actions = [list(map(tuple, acts)) for acts in data['actions']]
         self.vct_actions = [(index, step, tuple(act))
                             for index, step, act in data['vct_actions']]
+        
+    def split(self, ratio, shuffle=True, **kwargs):
+        sample_num = len(self)
+        split = int(sample_num * ratio)
+        assert 0 < split < sample_num
+        if shuffle:
+            indice = np.argsort(np.random.rand(sample_num)).tolist()
+        else:
+            indice = list(range(sample_num))
+        actions = self.actions
+        vct_actions = self.vct_actions
+        first_set = self.__class__(**kwargs)
+        first_set.actions = list(actions)
+        first_set.vct_actions = [vct_actions[idx] for idx in indice[:split]]
+        second_set = self.__class__(**kwargs)
+        second_set.actions = list(actions)
+        second_set.vct_actions = [vct_actions[idx] for idx in indice[split:]]
+        return first_set, second_set
