@@ -33,6 +33,7 @@ class VCTDataset(piskvork.PiskvorkVCTActions):
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--seed', type=int, default=1024)
     # dataset
     parser.add_argument('--piskvork', type=str, default='F:/repositories/gomocup/records')
     parser.add_argument('--split', type=float, default=0.75)
@@ -42,7 +43,7 @@ def parse_args():
     parser.add_argument('--block_num', type=int, default=4)
     # train
     parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--weight_decay', type=float, default=0.0)
+    parser.add_argument('--weight_decay', type=float, default=1e-4)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=200)
     return parser.parse_args()
@@ -50,6 +51,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    utils.set_seed(args.seed)
     piskvork_dir = Path(args.piskvork)
     vct_path = piskvork_dir / 'vct_actions.json'
     embedding = PlayerEmbedding(args.dim)
@@ -68,10 +70,14 @@ def main():
     model = GraphConvolutionNetwork(args.dim, args.hidden_dim, args.block_num)
     optimizer = torch.optim.Adam(
         list(model.parameters()) + list(embedding.parameters()), 
-        # model.parameters(),
         lr=args.lr, weight_decay=args.weight_decay
     )
     ce_loss = nn.CrossEntropyLoss()
+    dir = Path(utils.ROOT) / 'data' / 'gcn' / utils.time_format()
+    config_path = dir / 'config.json'
+    losses_path = dir / 'losses.json'
+    weight_path = dir / 'weights.pth'
+    losses = dict()
     for epoch in range(1, args.epochs + 1):
         total_loss = 0.0
         total_acc = 0.0
@@ -86,7 +92,7 @@ def main():
                 optimizer.step()
                 sample_num += pred.size(0)
                 total_loss += pred.size(0) * loss.item()
-                total_acc += (pred.argmax(-1) == actions.long()).sum()
+                total_acc += (pred.argmax(-1) == actions.long()).sum().item()
                 info = f'epoch {epoch}/{args.epochs}: '
                 info += f'loss: {total_loss/sample_num:.4f} '
                 info += f'acc: {total_acc/sample_num:.4f}'
@@ -102,11 +108,20 @@ def main():
                     loss = ce_loss(pred, actions)
                     sample_num += pred.size(0)
                     eval_loss += pred.size(0) * loss.item()
-                    eval_acc += (pred.argmax(-1) == actions.long()).sum()
+                    eval_acc += (pred.argmax(-1) == actions.long()).sum().item()
                     info = f'evalute: '
                     info += f'loss: {eval_loss/sample_num:.4f} '
                     info += f'acc: {eval_acc/sample_num:.4f}'
                     pbar.set_description(info)
+        losses.setdefault('loss', list()).append(total_loss / sample_num)
+        losses.setdefault('acc', list()).append(total_acc / sample_num)
+        losses.setdefault('eval_loss', list()).append(eval_loss / sample_num)
+        losses.setdefault('eval_acc', list()).append(eval_acc / sample_num)
+        dir.mkdir(parents=True, exist_ok=True)
+        utils.json_save(config_path, args.__dict__)
+        utils.json_save(losses_path, losses)
+        torch.save({'embedding': embedding.state_dict(), 
+                    'gcn': model.state_dict()}, weight_path)
 
 
 if __name__ == '__main__':
