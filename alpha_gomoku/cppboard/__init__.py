@@ -1,4 +1,4 @@
-from alpha_gomoku.cppboard.board import BoardWrapper
+from .board import BoardWrapper
 
 
 __all__ = ['Board']

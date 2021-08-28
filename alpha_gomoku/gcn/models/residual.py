@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from alpha_gomoku import utils
-from alpha_gomoku.cppboard import Board
+from ... import utils
+from ...cppboard import Board
+from .base import NetworkBase
+from .base import EmbeddingBase
 
 
-class PlayerEmbedding(nn.Module):
+class PlayerEmbedding(EmbeddingBase):
 
     def __init__(self, dim):
         super(PlayerEmbedding, self).__init__()
@@ -103,7 +105,7 @@ class GraphResidualBlock(nn.Module):
         return F.relu(self.stem(x) + shortcut)
 
 
-class GraphConvolutionNetwork(nn.Module):
+class GraphConvolutionNetwork(NetworkBase):
 
     def __init__(
             self, in_dim, hidden_dim, block_num, radius=6

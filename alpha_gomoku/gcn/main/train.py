@@ -1,0 +1,34 @@
+import argparse
+
+from alpha_gomoku import utils
+from alpha_gomoku.gcn.train import GCNPipeline
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--seed', type=int, default=1024)
+    # dataset
+    parser.add_argument('--root', type=str, default='F:/repositories/gomocup/records')
+    parser.add_argument('--split', type=float, default=0.75)
+    # model
+    parser.add_argument('--embedding', type=str, default='PlayerEmbedding')
+    parser.add_argument('--network', type=str, default='GraphConvolutionNetwork')
+    parser.add_argument('--dim', type=int, default=128)
+    parser.add_argument('--hidden_dim', type=int, default=128)
+    parser.add_argument('--block_num', type=int, default=4)
+    # train
+    parser.add_argument('--optimizer', type=str, default='Adam')
+    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--weight_decay', type=float, default=1e-4)
+    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--epochs', type=int, default=200)
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    GCNPipeline(**args.__dict__).train()
+
+
+if __name__ == '__main__':
+    main()

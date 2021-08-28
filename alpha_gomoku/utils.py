@@ -81,3 +81,26 @@ def get_func_kwargs(func, kwargs):
         for arg in inspect.getfullargspec(func).args
         if arg in kwargs
     }
+    
+    
+class AverageMeter(object):
+
+    def __init__(self):
+        self.reset()
+
+    def __call__(self):
+        assert self.count
+        return self.sum / self.count
+
+    def reset(self):
+        self.sum = 0
+        self.count = 0
+
+    def update(self, vals, n=1):
+        if isinstance(vals, Iterable):
+            for val in vals:
+                self.sum += val
+                self.count += 1
+        else:
+            self.sum += vals * n
+            self.count += n

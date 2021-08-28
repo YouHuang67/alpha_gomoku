@@ -1,12 +1,11 @@
 import json
 import random
 import numpy as np
-from torch import autograd
 from tqdm import tqdm
 from pathlib import Path
 
-from alpha_gomoku.cppboard import Board
-from alpha_gomoku.datasets.vct import get_vct_actions
+from ..cppboard import Board
+from .vct import get_vct_actions
 
 
 def load_piskvork_record(path):
