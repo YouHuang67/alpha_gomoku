@@ -14,6 +14,15 @@ ROOT = str(Path(__file__).parents[0])
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
+def str2bool(x):
+    if 't' in x.lower():
+        return True
+    elif 'f' in x.lower():
+        return False
+    else:
+        raise Exception(f'Illegal {x} for boolean parameter')
+
+
 tolist = lambda x: x if isinstance(x, Iterable) else [x]
 
 

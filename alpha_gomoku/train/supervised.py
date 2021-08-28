@@ -39,7 +39,7 @@ class SupervisedTrainer(TrainerBase):
         loss_meter = utils.AverageMeter()
         acc_meter = utils.AverageMeter()
         info = 'evaluate: '
-        with tqdm(self.dataloaders[0], desc=info) as pbar:
+        with tqdm(self.dataloaders[1], desc=info) as pbar:
             for X, y in pbar:
                 pred = model(X)
                 loss = self.loss(pred, y)

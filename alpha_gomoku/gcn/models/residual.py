@@ -5,6 +5,7 @@ from ... import utils
 from ...cppboard import Board
 from .base import NetworkBase
 from .base import EmbeddingBase
+from .base import get_laplacian_matrix
 
 
 class PlayerEmbedding(EmbeddingBase):
@@ -36,10 +37,8 @@ class GraphConvolutionLayer(nn.Module):
 
     def __init__(self, in_dim, dim, radius=6):
         super(GraphConvolutionLayer, self).__init__()
-        adjacent_matrix = self.get_adjacent_matrix(radius)
-        degrees_rsqrt = adjacent_matrix.sum(-1).rsqrt()
-        self.register_buffer('laplacian_matrix', 
-            torch.outer(degrees_rsqrt, degrees_rsqrt) * adjacent_matrix
+        self.register_buffer(
+            'laplacian_matrix', get_laplacian_matrix(radius)
         )
         self.weight = nn.Parameter(
             nn.init.kaiming_normal_(torch.empty(in_dim, dim))
@@ -47,21 +46,6 @@ class GraphConvolutionLayer(nn.Module):
 
     def forward(self, x):
         return torch.matmul(self.laplacian_matrix, torch.matmul(x, self.weight))
-
-    @staticmethod
-    def get_adjacent_matrix(radius):
-        matrix = torch.zeros(Board.STONE_NUM, Board.STONE_NUM)
-        for i in range(Board.STONE_NUM):
-            x1, y1 = i // Board.BOARD_SIZE, i % Board.BOARD_SIZE
-            for j in range(Board.STONE_NUM):
-                x2, y2 = j // Board.BOARD_SIZE, j % Board.BOARD_SIZE
-                if x1 == x2 and abs(y1 - y2) <= radius:
-                    matrix[i, j] = 1
-                elif y1 == y2 and abs(x1 - x2) <= radius:
-                    matrix[i, j] = 1
-                elif abs(x1 - x2) == abs(y1 - y2) <= radius:
-                    matrix[i, j] = 1
-        return matrix.float()
 
 
 class GraphBatchNorm(nn.Module):

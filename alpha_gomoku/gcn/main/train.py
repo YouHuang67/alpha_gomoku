@@ -13,14 +13,19 @@ def parse_args():
     # model
     parser.add_argument('--embedding', type=str, default='PlayerEmbedding')
     parser.add_argument('--network', type=str, default='GraphConvolutionNetwork')
-    parser.add_argument('--dim', type=int, default=128)
-    parser.add_argument('--hidden_dim', type=int, default=128)
-    parser.add_argument('--block_num', type=int, default=4)
+    parser.add_argument('--dim', type=int, default=256)
+    parser.add_argument('--hidden_dim', type=int, default=64)
+    # Residual
+    parser.add_argument('--block_num', type=int, default=8)
+    # GCNII
+    parser.add_argument('--layer_num', type=int, default=10)
+    parser.add_argument('--residual', type=utils.str2bool, default=True)
+    parser.add_argument('--dropout', type=float, default=0.5)
     # train
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--weight_decay', type=float, default=1e-4)
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--epochs', type=int, default=200)
     return parser.parse_args()
 
