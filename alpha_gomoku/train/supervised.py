@@ -67,6 +67,7 @@ class SupervisedPipelineBase(PipelineBase):
             dataset.load(vct_path)
         else:
             dataset = VCTDataset(self.to_tensor, args.root)
+            dataset.save(vct_path)
         return dataset.split(args.split)
     
     def make_optimizers(self):
