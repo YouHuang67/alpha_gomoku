@@ -4,6 +4,7 @@ from tqdm import tqdm
 from queue import Queue
 
 from ..cppboard import Board
+from alpha_gomoku import cppboard
 
 
 class Node(object):
@@ -65,8 +66,9 @@ class Node(object):
 class MonteCarloTreeSearch(object):
     nodes = dict()
     
-    def __init__(self, board):
+    def __init__(self, board, evaluator):
         self.board = board
+        self.evaluator = evaluator
         self.root = self.get_node(board)
     
     def backward(self, node, value):
@@ -83,9 +85,31 @@ class MonteCarloTreeSearch(object):
                     queue.put(node)
                     nodes.add(node)
                     
+    def develop(self, node):
+        board = node.board
+        probs, value = self.evaluator(board)
+        nodes = dict()
+        for action, prob in probs.items():
+            copy_board = board.copy()
+            copy_board.move(action)
+            nodes[action] = self.get_node(copy_board, prob)
+        if len(nodes):
+            node.expand(nodes)
+        return value
+                    
     @classmethod
-    def get_node(cls, board):
-        return cls.nodes.setdefault(board.key, Node(board))
+    def get_node(cls, board, prob=0.0):
+        return cls.nodes.setdefault(board.key, Node(board, prob))
+    
+    @classmethod
+    def clear_table(cls):
+        cls.nodes.clear()
+        
+    @classmethod
+    def clear_parents(cls):
+        for node in cls.values():
+            node.parents.clear()
+        
         
         
             
