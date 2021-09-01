@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ... import utils
 from ...cppboard import Board
+from .base import initialize
 from .base import NetworkBase
 from .base import EmbeddingBase
 from .base import get_laplacian_matrix
@@ -100,10 +101,18 @@ class GraphConvolutionNetwork(NetworkBase):
         for _ in range(block_num):
             layers.append(GraphResidualBlock(in_dim, hidden_dim, radius))
             in_dim = hidden_dim
-        layers.append(GraphConvolutionLayer(
-            in_dim * GraphResidualBlock.expansion, 1, radius
-        ))
         self.backbone = nn.Sequential(*layers)
+        in_dim *= GraphResidualBlock.expansion
+        self.classifier = GraphConvolutionLayer(in_dim, 1, radius)
+        dim = hidden_dim * 8
+        self.predictor = initialize(nn.Sequential(
+            nn.Linear(in_dim, dim), nn.ReLU(), 
+            nn.Linear(dim, dim), nn.ReLU(), 
+            nn.Linear(dim, 1, bias=False)
+        ))
     
     def forward(self, x):
-        return self.backbone(x).squeeze(-1)
+        features = self.backbone(x)
+        return self.classifier(features).squeeze(-1), \
+               self.predictor(features.mean(1)).squeeze(-1)
+               

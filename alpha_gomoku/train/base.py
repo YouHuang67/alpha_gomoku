@@ -16,10 +16,10 @@ class TrainerBase(object):
         self.optimizers = optimizers
         self._loss = loss_func
         
-    def loss(self, X, y):
+    def loss(self, *args, **kwargs):
         if self._loss is None:
             raise NotImplementedError
-        return self._loss(X, y)
+        return self._loss(*args, **kwargs)
     
     def step(self, info=''):
         raise NotImplementedError

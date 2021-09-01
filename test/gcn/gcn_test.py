@@ -6,7 +6,8 @@ def main():
     dim = 128
     embedding = models.PlayerEmbedding(dim)
     gcn = models.GraphConvolutionNetwork(dim, 128, 4)
-    print(gcn(embedding([Board(), Board()])).shape)
+    outs = gcn(embedding([Board(), Board()]))
+    print(outs[0].shape, outs[1].shape)
 
 
 if __name__ == '__main__':

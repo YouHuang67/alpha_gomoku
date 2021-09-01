@@ -3,6 +3,8 @@ from pathlib import Path
 from collections import OrderedDict
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from .. import utils
 from ..datasets import VCTDataset
@@ -12,45 +14,63 @@ from .base import PipelineBase
 
 class SupervisedTrainer(TrainerBase):
     
+    def loss(self, X1, X2, y):
+        model = self.models
+        prob, v1 = model(X1)
+        _, v2 = model(X2)
+        ce_loss = F.cross_entropy(prob, y)
+        binary_loss = (F.binary_cross_entropy_with_logits(
+            v1, torch.ones(y.size(0))
+        ) + F.binary_cross_entropy_with_logits(
+            v2, torch.zeros(y.size(0))
+        )) / 2
+        acc = (prob.argmax(-1) == y).float().mean()
+        return ce_loss, binary_loss, acc
+            
     def step(self, info=''):
         model = self.models.train()
         optimizer = self.optimizers
-        loss_meter = utils.AverageMeter()
+        ce_loss_meter = utils.AverageMeter()
+        binary_loss_meter = utils.AverageMeter()
         acc_meter = utils.AverageMeter()
         with tqdm(self.dataloaders[0], desc=info) as pbar:
-            for X, y in pbar:
-                pred = model(X)
-                loss = self.loss(pred, y)
+            for samples in pbar:
+                ce_loss, binary_loss, acc = self.loss(*samples)
+                loss = ce_loss + binary_loss
                 model.zero_grad()
                 loss.backward()
                 optimizer.step()
-                loss_meter.update(loss.item(), X.size(0))
-                acc_meter.update(
-                    (pred.argmax(-1) == y).float().mean().item(), X.size(0)
-                )
+                ce_loss_meter.update(ce_loss.item(), samples[0].size(0))
+                binary_loss_meter.update(binary_loss.item(), samples[0].size(0))
+                acc_meter.update(acc.item(), samples[0].size(0))
                 pbar.set_description(info + 
-                                     f'loss: {loss_meter():.4f} ' + 
+                                     f'ce_loss: {ce_loss_meter():.4f} ' + 
+                                     f'binary_loss: {binary_loss_meter():.4f} ' + 
                                      f'acc: {acc_meter():.4f}')
-        return OrderedDict(loss=loss_meter(), acc=acc_meter())
+        return OrderedDict(ce_loss=ce_loss_meter(), 
+                           binary_loss=binary_loss_meter(), 
+                           acc=acc_meter())
     
     @torch.no_grad()
     def eval(self):
-        model = self.models.eval()
-        loss_meter = utils.AverageMeter()
+        self.models.eval()
+        ce_loss_meter = utils.AverageMeter()
+        binary_loss_meter = utils.AverageMeter()
         acc_meter = utils.AverageMeter()
         info = 'evaluate: '
-        with tqdm(self.dataloaders[1], desc=info) as pbar:
-            for X, y in pbar:
-                pred = model(X)
-                loss = self.loss(pred, y)
-                loss_meter.update(loss.item(), X.size(0))
-                acc_meter.update(
-                    (pred.argmax(-1) == y).float().mean().item(), X.size(0)
-                )
+        with tqdm(self.dataloaders[0], desc=info) as pbar:
+            for samples in pbar:
+                ce_loss, binary_loss, acc = self.loss(*samples)
+                ce_loss_meter.update(ce_loss.item(), samples[0].size(0))
+                binary_loss_meter.update(binary_loss.item(), samples[0].size(0))
+                acc_meter.update(acc.item(), samples[0].size(0))
                 pbar.set_description(info + 
-                                     f'eval loss: {loss_meter():.4f} ' + 
-                                     f'eval acc: {acc_meter():.4f}')
-        return OrderedDict(eval_loss=loss_meter(), eval_acc=acc_meter())
+                                     f'ce_loss: {ce_loss_meter():.4f} ' + 
+                                     f'binary_loss: {binary_loss_meter():.4f} ' + 
+                                     f'acc: {acc_meter():.4f}')
+        return OrderedDict(eval_ce_loss=ce_loss_meter(), 
+                           eval_binary_loss=binary_loss_meter(), 
+                           eval_acc=acc_meter())
     
     
 class SupervisedPipelineBase(PipelineBase):

@@ -4,6 +4,18 @@ import torch.nn as nn
 from ...cppboard import Board
 
 
+def initialize(model):
+    for m in model.modules():
+        if isinstance(m, (nn.Conv2d, nn.Linear)):
+            nn.init.kaiming_normal_(m.weight)
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
+        elif isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)):
+            nn.init.ones_(m.weight)
+            nn.init.zeros_(m.bias)
+    return model
+
+
 class EmbeddingBase(nn.Module):
     pass
 
