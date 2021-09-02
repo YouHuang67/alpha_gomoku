@@ -32,7 +32,11 @@ class Model(nn.Module):
         self.network = network
         
     def to_tensor(self, actions):
-        return self.embedding(Board(actions))[0]
+        if isinstance(actions, Board):
+            board = actions
+        else:
+            board = Board(actions)
+        return self.embedding(board)[0]
     
     def forward(self, x):
         return self.network(x)

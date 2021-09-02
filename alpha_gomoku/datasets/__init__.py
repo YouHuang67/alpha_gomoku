@@ -11,8 +11,11 @@ class VCTDataset(PiskvorkVCTActions):
         
     def __getitem__(self, item):
         actions, vct_action = super(VCTDataset, self).__getitem__(item)
-        return self.to_tensor(actions), self.to_tensor(actions+(vct_action, )), \
-            vct_action[0] * Board.BOARD_SIZE + vct_action[1]
+        board = Board(actions)
+        attack = self.to_tensor(board)
+        board.move(vct_action)
+        defense = self.to_tensor(board)
+        return attack, defense, vct_action[0] * Board.BOARD_SIZE + vct_action[1]
     
     def split(self, ratio, shuffle=True):
         return super(VCTDataset, self).split(
