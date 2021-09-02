@@ -22,13 +22,19 @@ class Board(object):
         else:
             self.cppboard = cppboard
         self.history = []
+        self.illegal_actions = set()
         if history is not None:
             for act in history:
                 self.move(act)
+                
+    def is_legal(self, action):
+        return action not in self.illegal_actions
 
     def move(self, action):
+        assert self.is_legal(action)
         self.cppboard.Move(self.action_flatten(*action))
         self.history.append(action)
+        self.illegal_actions.add(action)
 
     def evaluate(self, max_node_num=100000):
         actions = self.cppboard.Evaluate(max_node_num)
