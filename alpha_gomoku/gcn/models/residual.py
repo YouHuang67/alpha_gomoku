@@ -104,7 +104,7 @@ class GraphConvolutionNetwork(NetworkBase):
         self.backbone = nn.Sequential(*layers)
         in_dim *= GraphResidualBlock.expansion
         self.classifier = GraphConvolutionLayer(in_dim, 1, radius)
-        dim = hidden_dim * 8
+        dim = hidden_dim * 4
         self.predictor = initialize(nn.Sequential(
             nn.Linear(in_dim, dim), nn.ReLU(), 
             nn.Linear(dim, dim), nn.ReLU(), 

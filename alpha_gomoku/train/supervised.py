@@ -58,7 +58,7 @@ class SupervisedTrainer(TrainerBase):
         binary_loss_meter = utils.AverageMeter()
         acc_meter = utils.AverageMeter()
         info = 'evaluate: '
-        with tqdm(self.dataloaders[0], desc=info) as pbar:
+        with tqdm(self.dataloaders[1], desc=info) as pbar:
             for samples in pbar:
                 ce_loss, binary_loss, acc = self.loss(*samples)
                 ce_loss_meter.update(ce_loss.item(), samples[0].size(0))
