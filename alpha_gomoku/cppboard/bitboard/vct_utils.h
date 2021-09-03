@@ -87,8 +87,7 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
             if (doubleThree)
             {
                 UC* handle = actionTable[doubleThree];
-                for (int i = 1; i <= handle[0]; i++)
-                    actions[++actions[0]] = ActionFlatten(row, handle[i]);
+                actions[++actions[0]] = ActionFlatten(row, handle[1]);
                 return POSITIVE;
             }
             UC* handle = actionTable[threeOrActions];
@@ -114,8 +113,7 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
                 !GetActions(BLACK == attacker ? WHITE: BLACK, THREE, true))
             {
                 UC* handle = actionTable[doubleOpenTwo];
-                for (int i = 1; i <= handle[0]; i++)
-                    actions[++actions[0]] = ActionFlatten(row, handle[i]);
+                actions[++actions[0]] = ActionFlatten(row, handle[1]);
                 return POSITIVE;
             }
             UC* handle = actionTable[openTwoOrActions];
@@ -141,8 +139,7 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
         threeTwo = threeOrTwo ^ threeXorTwo;
         if (!threeTwo) continue;
         UC* handle = actionTable[threeTwo];
-        for (int i = 1; i <= handle[0]; i++)
-            actions[++actions[0]] = ActionFlatten(row, handle[i]);
+        actions[++actions[0]] = ActionFlatten(row, handle[1]);
         return POSITIVE;
     }
     for (int i = 1; i <= twoActions[0]; i++) 
