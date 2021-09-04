@@ -103,11 +103,9 @@ class GraphConvolutionNetwork(NetworkBase):
             in_dim = hidden_dim
         self.backbone = nn.Sequential(*layers)
         in_dim *= GraphResidualBlock.expansion
-        self.classifier = GraphConvolutionLayer(in_dim, 1, radius)
-        self.predictor = initialize(nn.Linear(in_dim, 1, bias=False))
+        self.classifier = nn.Linear(in_dim, 1, bias=False)
     
     def forward(self, x):
-        features = self.backbone(x)
-        return self.classifier(features).squeeze(-1), \
-               self.predictor(features.mean(1)).squeeze(-1)
+        logits = self.classifier(self.backbone(x)).squeeze(-1)
+        return logits, logits.max(-1)[0]
                
