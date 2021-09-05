@@ -1,9 +1,10 @@
+import time
 import random
-import shutil
 from pathlib import Path
 
 import torch
 
+from .. import utils
 from ..cppboard import Board
 from .piskvork import PiskvorkVCTActions
 
@@ -13,9 +14,8 @@ class VCTDataset(PiskvorkVCTActions):
     def __init__(self, to_tensor, root='', augmentation=True):
         super(VCTDataset, self).__init__(root, augmentation)
         self.to_tensor = to_tensor
-        dir = Path(root) / '_temp_tensors'
-        if dir.is_dir():
-            shutil.rmtree(dir)
+        time.sleep(1)
+        dir = Path(root) / '_temp_tensors' / utils.time_format()
         dir.mkdir(parents=True, exist_ok=False)
         self.dir = dir
         
@@ -40,5 +40,6 @@ class VCTDataset(PiskvorkVCTActions):
     
     def split(self, ratio, shuffle=True):
         return super(VCTDataset, self).split(
-            ratio, shuffle, to_tensor=self.to_tensor
+            ratio, shuffle, to_tensor=self.to_tensor, 
+            root=self.root, augmentation=self.augmentation
         )

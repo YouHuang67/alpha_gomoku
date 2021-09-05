@@ -24,13 +24,14 @@ def load_piskvork_records(root):
 class PiskvorkVCTActions(object):
 
     def __init__(self, root='', augmentation=True):
+        self.root = root
+        self.augmentation = augmentation
         if root:
             self.actions, self.vct_actions = \
                 self.get_vct_actions_from_piskvork_records(root)
         else:
             self.actions = []
             self.vct_actions = []
-        self.augmentation = augmentation
 
     def __len__(self):
         return len(self.vct_actions)
