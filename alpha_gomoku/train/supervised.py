@@ -75,7 +75,7 @@ class SupervisedTrainer(TrainerBase):
     
 class SupervisedPipelineBase(PipelineBase):
     
-    def to_tensor(self, actions):
+    def to_tensor(self, x):
         raise NotImplementedError
     
     def make_datasets(self):

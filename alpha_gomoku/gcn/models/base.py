@@ -31,12 +31,14 @@ class Model(nn.Module):
         self.embedding = embdding
         self.network = network
         
-    def to_tensor(self, actions):
-        if isinstance(actions, Board):
-            board = actions
+    def to_tensor(self, x):
+        if isinstance(x, Board):
+            vector = x.vector
+        elif isinstance(x[0], int):
+            vector = x
         else:
-            board = Board(actions)
-        return self.embedding(board)[0]
+            vector = Board(x).vector
+        return self.embedding([vector])[0]
     
     def forward(self, x):
         return self.network(x)

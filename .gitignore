@@ -180,3 +180,7 @@ board.py
 # data
 *.dat
 data/
+
+# temp
+temp*
+_temp*

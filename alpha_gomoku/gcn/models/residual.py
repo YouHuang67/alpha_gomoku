@@ -21,10 +21,14 @@ class PlayerEmbedding(EmbeddingBase):
     def forward(self, boards):
         embeddings = []
         for board in utils.tolist(boards):
-            stones = torch.Tensor(board.vector).long().to(self.embeddings.device)
-            if board.player == Board.WHITE:
-                black_mask = (stones == 0)
-                white_mask = (stones == 1)
+            if isinstance(board, Board):
+                vector = board.vector
+            else:
+                vector = board
+            stones = torch.Tensor(vector).long().to(self.embeddings.device)
+            black_mask = (stones == 0)
+            white_mask = (stones == 1)
+            if black_mask.long().sum() == white_mask.long().sum():
                 stones[black_mask] = 1
                 stones[white_mask] = 0
             stones = stones.view(-1, 1, 1).repeat(1, 1, self.dim)

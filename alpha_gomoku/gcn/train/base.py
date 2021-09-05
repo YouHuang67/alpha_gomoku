@@ -21,8 +21,8 @@ class VanillaGCNTrainer(SupervisedTrainer):
         
 class GCNPipeline(SupervisedPipelineBase):
     
-    def to_tensor(self, actions):
-        return self.models.to_tensor(actions)
+    def to_tensor(self, x):
+        return self.models.to_tensor(x)
     
     def make_dir(self):
         return str(Path(utils.ROOT) / 'data' / 'gcn' / utils.time_format())
