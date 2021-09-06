@@ -34,7 +34,7 @@ class VanillaGCNTrainer(SupervisedTrainer):
         defense_tensor, defense_mask = defense
         defense_logits = model(defense_tensor)
         defense_logits.masked_fill_(defense_mask == 0, -float('inf'))
-        attack_entropy = self.entropy(attack_logits, attack_mask)
+        attack_entropy = self.entropy(attack_logits, attack_mask).detach()
         defense_entropy = self.entropy(defense_logits, defense_mask)
         value_loss = (-attack_entropy + defense_entropy).mean()
         loss = action_loss + value_loss
