@@ -21,7 +21,7 @@ class TrainerBase(object):
             raise NotImplementedError
         return self._loss(*args, **kwargs)
     
-    def step(self, info=''):
+    def step(self, desc=''):
         raise NotImplementedError
     
     @torch.no_grad()

@@ -1,3 +1,4 @@
+from numpy import isin
 from tqdm import tqdm
 from pathlib import Path
 from collections import OrderedDict
@@ -14,63 +15,61 @@ from .base import PipelineBase
 
 class SupervisedTrainer(TrainerBase):
     
-    def loss(self, X1, X2, y):
-        model = self.models
-        prob, v1 = model(X1)
-        _, v2 = model(X2)
-        ce_loss = F.cross_entropy(prob, y)
-        binary_loss = (F.binary_cross_entropy_with_logits(
-            v1, torch.ones(y.size(0))
-        ) + F.binary_cross_entropy_with_logits(
-            v2, torch.zeros(y.size(0))
-        )) / 2
-        acc = (prob.argmax(-1) == y).float().mean()
-        return ce_loss, binary_loss, acc
+    def loss(self, samples, training):
+        raise NotImplementedError
+
+    @staticmethod
+    def get_sample_size(samples):
+        if isinstance(samples, torch.Tensor):
+            x = samples
+        elif isinstance(samples, dict):
+            x = next(iter(samples.values()))
+        elif isinstance(samples, (list, tuple)):
+            x = samples[0]
+        else:
+            raise Exception(f'cannot get sample size of instance of {type(samples)}')
+        if isinstance(x, torch.Tensor):
+            return x.size(0)
+        elif isinstance(x, (list, tuple)):
+            return len(x)
+        else:
+            raise Exception(f'cannot get size of instance of {type(x)}')
             
-    def step(self, info=''):
+    def step(self, desc=''):
         model = self.models.train()
         optimizer = self.optimizers
-        ce_loss_meter = utils.AverageMeter()
-        binary_loss_meter = utils.AverageMeter()
-        acc_meter = utils.AverageMeter()
-        with tqdm(self.dataloaders[0], desc=info) as pbar:
+        meters = OrderedDict()
+        with tqdm(self.dataloaders[0], desc=desc) as pbar:
             for samples in pbar:
-                ce_loss, binary_loss, acc = self.loss(*samples)
-                loss = ce_loss + binary_loss
+                losses = self.loss(samples, training=True)
                 model.zero_grad()
-                loss.backward()
+                losses['loss'].backward()
                 optimizer.step()
-                ce_loss_meter.update(ce_loss.item(), samples[0].size(0))
-                binary_loss_meter.update(binary_loss.item(), samples[0].size(0))
-                acc_meter.update(acc.item(), samples[0].size(0))
-                pbar.set_description(info + 
-                                     f'ce_loss: {ce_loss_meter():.4f} ' + 
-                                     f'binary_loss: {binary_loss_meter():.4f} ' + 
-                                     f'acc: {acc_meter():.4f}')
-        return OrderedDict(ce_loss=ce_loss_meter(), 
-                           binary_loss=binary_loss_meter(), 
-                           acc=acc_meter())
+                sample_size = self.get_sample_size(samples)
+                info = ''
+                for lossname, lossval in losses.items():
+                    meter = meters.setdefault(lossname, utils.AverageMeter())
+                    meter.update(lossval.item(), sample_size)
+                    info += f' {lossname}: {meter():.4f}'
+                pbar.set_description(desc + info)
+        return OrderedDict(**{lossname: meter() for lossname, meter in meters.items()})
     
     @torch.no_grad()
     def eval(self):
         self.models.eval()
-        ce_loss_meter = utils.AverageMeter()
-        binary_loss_meter = utils.AverageMeter()
-        acc_meter = utils.AverageMeter()
-        info = 'evaluate: '
-        with tqdm(self.dataloaders[1], desc=info) as pbar:
+        meters = OrderedDict()
+        desc = 'evaluate: '
+        with tqdm(self.dataloaders[1], desc=desc) as pbar:
             for samples in pbar:
-                ce_loss, binary_loss, acc = self.loss(*samples)
-                ce_loss_meter.update(ce_loss.item(), samples[0].size(0))
-                binary_loss_meter.update(binary_loss.item(), samples[0].size(0))
-                acc_meter.update(acc.item(), samples[0].size(0))
-                pbar.set_description(info + 
-                                     f'ce_loss: {ce_loss_meter():.4f} ' + 
-                                     f'binary_loss: {binary_loss_meter():.4f} ' + 
-                                     f'acc: {acc_meter():.4f}')
-        return OrderedDict(eval_ce_loss=ce_loss_meter(), 
-                           eval_binary_loss=binary_loss_meter(), 
-                           eval_acc=acc_meter())
+                losses = self.loss(samples, training=False)
+                sample_size = self.get_sample_size(samples)
+                info = ''
+                for lossname, lossval in losses.items():
+                    meter = meters.setdefault(lossname, utils.AverageMeter())
+                    meter.update(lossval.item(), sample_size)
+                    info += f' {lossname}: {meter():.4f}'
+                pbar.set_description(desc + info)
+        return OrderedDict(**{lossname: meter() for lossname, meter in meters.items()})
     
     
 class SupervisedPipelineBase(PipelineBase):
@@ -101,8 +100,8 @@ class SupervisedPipelineBase(PipelineBase):
         trainer = self.trainer
         losses = OrderedDict()
         for epoch in range(1, args.epochs+1):
-            info = f'epoch {epoch:d}/{args.epochs}: '
-            for lossname, lossval in trainer.step(info).items():
+            desc = f'epoch {epoch:d}/{args.epochs}: '
+            for lossname, lossval in trainer.step(desc).items():
                 losses.setdefault(lossname, list()).append(lossval)
             for lossname, lossval in trainer.eval().items():
                 losses.setdefault(lossname, list()).append(lossval)

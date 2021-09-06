@@ -14,18 +14,16 @@ class PlayerEmbedding(EmbeddingBase):
     def __init__(self, dim):
         super(PlayerEmbedding, self).__init__()
         self.dim = dim
-        self.register_buffer('embeddings', 
-            torch.randn(1, 3, dim)
-        )
+        self.register_buffer('embeddings', torch.randn(1, 3, dim))
 
-    def forward(self, boards):
+    def forward(self, vectors):
         embeddings = []
-        for board in utils.tolist(boards):
-            if isinstance(board, Board):
-                vector = board.vector
+        for vector in vectors:
+            if isinstance(vector, torch.Tensor):
+                stones = vector
             else:
-                vector = board
-            stones = torch.Tensor(vector).long().to(self.embeddings.device)
+                stones = torch.Tensor(vector)
+            stones = stones.long().to(self.embeddings.device)
             black_mask = (stones == 0)
             white_mask = (stones == 1)
             if black_mask.long().sum() == white_mask.long().sum():
@@ -110,6 +108,5 @@ class GraphConvolutionNetwork(NetworkBase):
         self.classifier = nn.Linear(in_dim, 1, bias=False)
     
     def forward(self, x):
-        logits = self.classifier(self.backbone(x)).squeeze(-1)
-        return logits, logits.max(-1)[0]
+        return self.classifier(self.backbone(x)).squeeze(-1)
                

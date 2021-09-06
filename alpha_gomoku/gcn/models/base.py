@@ -38,7 +38,11 @@ class Model(nn.Module):
             vector = x
         else:
             vector = Board(x).vector
-        return self.embedding([vector])[0]
+        vector = torch.Tensor(vector)
+        embedding = self.embedding([vector])[0]
+        mask = torch.zeros_like(vector).float()
+        mask[vector == Board.EMPTY] = 1
+        return embedding, mask
     
     def forward(self, x):
         return self.network(x)
