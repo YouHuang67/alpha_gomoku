@@ -81,7 +81,7 @@ class GCNPipeline(SupervisedPipelineBase):
         train_set, test_set = self.datasets
         dataloaders = (
             DataLoader(train_set, batch_size=batch_size, shuffle=True),
-            DataLoader(test_set, batch_size=batch_size, shuffle=False)
+            DataLoader(test_set, batch_size=2*batch_size, shuffle=False)
         )
         return VanillaGCNTrainer(
             dataloaders, self.models, self.optimizers, 
