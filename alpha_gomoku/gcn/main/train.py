@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument('--weight_decay', type=float, default=1e-4)
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--epochs', type=int, default=200)
+    parser.add_argument('--value_weight', type=float, default=1.0)
     return parser.parse_args()
 
 

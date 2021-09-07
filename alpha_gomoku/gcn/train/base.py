@@ -15,6 +15,12 @@ from ..models import embedding_classes
 
 
 class VanillaGCNTrainer(SupervisedTrainer):
+    
+    def __init__(self, dataloaders, models, optimizers, value_weight=1.0):
+        super(VanillaGCNTrainer, self).__init__(
+            dataloaders, models, optimizers
+        )
+        self.value_weight = value_weight
 
     @staticmethod
     def entropy(logits, mask):
@@ -37,7 +43,7 @@ class VanillaGCNTrainer(SupervisedTrainer):
         attack_entropy = self.entropy(attack_logits, attack_mask).detach()
         defense_entropy = self.entropy(defense_logits, defense_mask)
         value_loss = (-attack_entropy + defense_entropy).mean()
-        loss = action_loss + value_loss
+        loss = action_loss + self.value_weight * value_loss
         acc = (attack_logits.argmax(-1) == action).float().mean()
         return OrderedDict(loss=loss, act_loss=action_loss, 
                            val_loss=value_loss, acc=acc)
@@ -72,4 +78,7 @@ class GCNPipeline(SupervisedPipelineBase):
             DataLoader(train_set, batch_size=batch_size, shuffle=True),
             DataLoader(test_set, batch_size=batch_size, shuffle=False)
         )
-        return VanillaGCNTrainer(dataloaders, self.models, self.optimizers)
+        return VanillaGCNTrainer(
+            dataloaders, self.models, self.optimizers, 
+            value_weight=args.value_weight
+        )
