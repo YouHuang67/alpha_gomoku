@@ -1,5 +1,6 @@
 from pathlib import Path
 from collections import OrderedDict
+from sklearn.metrics import roc_auc_score
 
 import torch
 import torch.nn as nn
@@ -45,8 +46,12 @@ class VanillaGCNTrainer(SupervisedTrainer):
         value_loss = (-attack_entropy + defense_entropy).mean()
         loss = action_loss + self.value_weight * value_loss
         acc = (attack_logits.argmax(-1) == action).float().mean()
+        entropy = torch.cat([attack_entropy, defense_entropy.detach()], dim=0)
+        labels = torch.cat([torch.ones_like(attack_entropy), 
+                            torch.zeros_like(defense_entropy)], dim=0)
+        auc = torch.Tensor([roc_auc_score(labels, entropy)])
         return OrderedDict(loss=loss, act_loss=action_loss, 
-                           val_loss=value_loss, acc=acc)
+                           val_loss=value_loss, acc=acc, auc=auc)
         
         
 class GCNPipeline(SupervisedPipelineBase):
