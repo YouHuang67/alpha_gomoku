@@ -69,17 +69,23 @@ class GraphResidualBlock(nn.Module):
         out_dim = dim * self.expansion
         layers = []
         layers.append(nn.Linear(in_dim, dim, bias=False))
-        layers.append(GraphBatchNorm(dim))
+        # layers.append(GraphBatchNorm(dim))
+        layers.append(nn.Dropout(0.5))
         layers.append(nn.ReLU())
         layers.append(GraphConvolutionLayer(dim, dim, radius))
-        layers.append(GraphBatchNorm(dim))
+        # layers.append(GraphBatchNorm(dim))
+        layers.append(nn.Dropout(0.5))
         layers.append(nn.ReLU())
         layers.append(nn.Linear(dim, out_dim, bias=False))
-        layers.append(GraphBatchNorm(out_dim))
+        # layers.append(GraphBatchNorm(out_dim))
+        layers.append(nn.Dropout(0.5))
         self.stem = nn.Sequential(*layers)
         if in_dim != out_dim:
+            # self.shortcut = nn.Sequential(
+            #     nn.Linear(in_dim, out_dim), GraphBatchNorm(out_dim)
+            # )
             self.shortcut = nn.Sequential(
-                nn.Linear(in_dim, out_dim), GraphBatchNorm(out_dim)
+                nn.Linear(in_dim, out_dim), nn.Dropout(0.5)
             )
         else:
             self.shortcut = None
