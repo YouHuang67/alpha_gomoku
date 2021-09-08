@@ -58,7 +58,10 @@ def get_adjacent_matrix(radius):
     return matrix.float()
 
 
-def get_laplacian_matrix(radius):
-    adjacent_matrix = get_adjacent_matrix(radius)
+def normalize_adjacent_matrix(adjacent_matrix):
     degrees_rsqrt = adjacent_matrix.sum(-1).rsqrt()
     return torch.outer(degrees_rsqrt, degrees_rsqrt) * adjacent_matrix
+
+
+def get_laplacian_matrix(radius):
+    return normalize_adjacent_matrix(get_adjacent_matrix(radius))

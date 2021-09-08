@@ -1,6 +1,7 @@
 from .base import *
 from .residual import *
 from .gcnii import *
+from .auxiliary import *
 
 
 embedding_classes = {

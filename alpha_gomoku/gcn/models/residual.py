@@ -38,11 +38,11 @@ class PlayerEmbedding(EmbeddingBase):
 
 class GraphConvolutionLayer(nn.Module):
 
-    def __init__(self, in_dim, dim, radius=6):
+    def __init__(self, in_dim, dim, radius=6, laplacian_matrix=None):
         super(GraphConvolutionLayer, self).__init__()
-        self.register_buffer(
-            'laplacian_matrix', get_laplacian_matrix(radius)
-        )
+        if laplacian_matrix is None:
+            laplacian_matrix = get_laplacian_matrix(radius)
+        self.register_buffer('laplacian_matrix', laplacian_matrix)
         self.weight = nn.Parameter(
             nn.init.kaiming_normal_(torch.empty(in_dim, dim))
         )
@@ -63,7 +63,8 @@ class GraphBatchNorm(nn.Module):
     
 class GraphResidualBlock(nn.Module):
     expansion = 4
-    def __init__(self, in_dim, dim, radius=6, dropout=0.1):
+    def __init__(self, in_dim, dim, radius=6, 
+                 gcn_cls=GraphConvolutionLayer):
         super(GraphResidualBlock, self).__init__()
         in_dim *= self.expansion
         out_dim = dim * self.expansion
@@ -71,16 +72,15 @@ class GraphResidualBlock(nn.Module):
         layers.append(nn.Linear(in_dim, dim, bias=False))
         layers.append(GraphBatchNorm(dim))
         layers.append(nn.ReLU())
-        layers.append(GraphConvolutionLayer(dim, dim, radius))
+        layers.append(gcn_cls(dim, dim, radius))
         layers.append(GraphBatchNorm(dim))
-        layers.append(nn.Dropout(dropout))
         layers.append(nn.ReLU())
         layers.append(nn.Linear(dim, out_dim, bias=False))
         layers.append(GraphBatchNorm(out_dim))
         self.stem = nn.Sequential(*layers)
         if in_dim != out_dim:
             self.shortcut = nn.Sequential(
-                nn.Linear(in_dim, out_dim), GraphBatchNorm(out_dim), nn.Dropout(dropout)
+                nn.Linear(in_dim, out_dim), GraphBatchNorm(out_dim)
             )
         else:
             self.shortcut = None
@@ -96,19 +96,18 @@ class GraphResidualBlock(nn.Module):
 class GraphConvolutionNetwork(NetworkBase):
 
     def __init__(
-            self, in_dim, hidden_dim, block_num, radius=6, dropout=0.1
+            self, in_dim, hidden_dim, block_num, 
+            radius=6, gcn_cls=GraphConvolutionLayer
         ):
         super(GraphConvolutionNetwork, self).__init__()
         layers = []
         in_dim //= 4
         for _ in range(block_num):
-            layers.append(GraphResidualBlock(in_dim, hidden_dim, radius, dropout))
+            layers.append(GraphResidualBlock(in_dim, hidden_dim, radius, gcn_cls))
             in_dim = hidden_dim
         self.backbone = nn.Sequential(*layers)
         in_dim *= GraphResidualBlock.expansion
-        self.classifier = nn.Sequential(
-            nn.Dropout(dropout), nn.Linear(in_dim, 1, bias=False)
-        )
+        self.classifier = nn.Sequential(nn.Linear(in_dim, 1, bias=False))
     
     def forward(self, x):
         return self.classifier(self.backbone(x)).squeeze(-1)

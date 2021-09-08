@@ -4,11 +4,13 @@ import torch
 
 from alpha_gomoku import utils
 from alpha_gomoku.gcn.train import GCNPipeline
+from alpha_gomoku.gcn.train import AuxiliaryPipeline
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=1024)
+    parser.add_argument('--auxiliary', type=utils.str2bool, default=False)
     # dataset
     parser.add_argument('--root', type=str, default='F:/repositories/gomocup/records')
     parser.add_argument('--split', type=float, default=0.75)
@@ -37,8 +39,11 @@ def parse_args():
 
 
 def main():
-    # torch.multiprocessing.set_start_method('spawn')
     args = parse_args()
+    if args.auxiliary:
+        pipeline_cls = AuxiliaryPipeline
+    else:
+        pipeline = GCNPipeline
     GCNPipeline(**args.__dict__).train()
 
 
