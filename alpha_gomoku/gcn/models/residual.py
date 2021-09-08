@@ -63,29 +63,24 @@ class GraphBatchNorm(nn.Module):
     
 class GraphResidualBlock(nn.Module):
     expansion = 4
-    def __init__(self, in_dim, dim, radius=6):
+    def __init__(self, in_dim, dim, radius=6, dropout=0.1):
         super(GraphResidualBlock, self).__init__()
         in_dim *= self.expansion
         out_dim = dim * self.expansion
         layers = []
         layers.append(nn.Linear(in_dim, dim, bias=False))
-        # layers.append(GraphBatchNorm(dim))
-        layers.append(nn.Dropout(0.5))
+        layers.append(GraphBatchNorm(dim))
         layers.append(nn.ReLU())
         layers.append(GraphConvolutionLayer(dim, dim, radius))
-        # layers.append(GraphBatchNorm(dim))
-        layers.append(nn.Dropout(0.5))
+        layers.append(GraphBatchNorm(dim))
+        layers.append(nn.Dropout(dropout))
         layers.append(nn.ReLU())
         layers.append(nn.Linear(dim, out_dim, bias=False))
-        # layers.append(GraphBatchNorm(out_dim))
-        layers.append(nn.Dropout(0.5))
+        layers.append(GraphBatchNorm(out_dim))
         self.stem = nn.Sequential(*layers)
         if in_dim != out_dim:
-            # self.shortcut = nn.Sequential(
-            #     nn.Linear(in_dim, out_dim), GraphBatchNorm(out_dim)
-            # )
             self.shortcut = nn.Sequential(
-                nn.Linear(in_dim, out_dim), nn.Dropout(0.5)
+                nn.Linear(in_dim, out_dim), GraphBatchNorm(out_dim)
             )
         else:
             self.shortcut = None
@@ -101,17 +96,19 @@ class GraphResidualBlock(nn.Module):
 class GraphConvolutionNetwork(NetworkBase):
 
     def __init__(
-            self, in_dim, hidden_dim, block_num, radius=6
+            self, in_dim, hidden_dim, block_num, radius=6, dropout=0.1
         ):
         super(GraphConvolutionNetwork, self).__init__()
         layers = []
         in_dim //= 4
         for _ in range(block_num):
-            layers.append(GraphResidualBlock(in_dim, hidden_dim, radius))
+            layers.append(GraphResidualBlock(in_dim, hidden_dim, radius, dropout))
             in_dim = hidden_dim
         self.backbone = nn.Sequential(*layers)
         in_dim *= GraphResidualBlock.expansion
-        self.classifier = nn.Linear(in_dim, 1, bias=False)
+        self.classifier = nn.Sequential(
+            nn.Dropout(dropout), nn.Linear(in_dim, 1, bias=False)
+        )
     
     def forward(self, x):
         return self.classifier(self.backbone(x)).squeeze(-1)
