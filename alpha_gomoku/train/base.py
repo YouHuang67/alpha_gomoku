@@ -15,6 +15,7 @@ class TrainerBase(object):
         self.models = models
         self.optimizers = optimizers
         self._loss = loss_func
+        self.device = utils.DEVICE
         
     def loss(self, *args, **kwargs):
         if self._loss is None:
@@ -33,6 +34,7 @@ class PipelineBase(object):
     
     def __init__(self, dir=None, **kwargs):
         self.args = Namespace(**kwargs)
+        self.device = utils.DEVICE
         if dir is None:
             self.dirs = self.make_dirs()
         else:
