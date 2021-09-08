@@ -61,6 +61,16 @@ class GraphBatchNorm(nn.Module):
         return self.norm(x.transpose(1, 2)).transpose(1, 2)
     
     
+class GraphInstanceNorm(nn.Module):
+    
+    def __init__(self, dim):
+        super(GraphInstanceNorm, self).__init__()
+        self.norm = nn.InstanceNorm1d(dim)
+        
+    def forward(self, x):
+        return self.norm(x.transpose(1, 2)).transpose(1, 2)
+    
+    
 class GraphResidualBlock(nn.Module):
     expansion = 4
     def __init__(self, in_dim, dim, radius=6, 
@@ -70,17 +80,22 @@ class GraphResidualBlock(nn.Module):
         out_dim = dim * self.expansion
         layers = []
         layers.append(nn.Linear(in_dim, dim, bias=False))
-        layers.append(GraphBatchNorm(dim))
+        # layers.append(GraphBatchNorm(dim))
+        layers.append(GraphInstanceNorm(dim))
         layers.append(nn.ReLU())
         layers.append(gcn_cls(dim, dim, radius))
-        layers.append(GraphBatchNorm(dim))
+        # layers.append(GraphBatchNorm(dim))
+        layers.append(GraphInstanceNorm(dim))
         layers.append(nn.ReLU())
         layers.append(nn.Linear(dim, out_dim, bias=False))
-        layers.append(GraphBatchNorm(out_dim))
+        # layers.append(GraphBatchNorm(out_dim))
+        layers.append(GraphInstanceNorm(out_dim))
         self.stem = nn.Sequential(*layers)
         if in_dim != out_dim:
             self.shortcut = nn.Sequential(
-                nn.Linear(in_dim, out_dim), GraphBatchNorm(out_dim)
+                nn.Linear(in_dim, out_dim), 
+                # GraphBatchNorm(out_dim)
+                GraphInstanceNorm(out_dim)
             )
         else:
             self.shortcut = None
