@@ -13,9 +13,8 @@ from .piskvork import PiskvorkVCTActions
 
 class VCTDataset(PiskvorkVCTActions):
     
-    def __init__(self, to_tensor, root='', augmentation=True, dir=None):
+    def __init__(self, root='', augmentation=True, dir=None):
         super(VCTDataset, self).__init__(root, augmentation)
-        self.to_tensor = to_tensor
         time.sleep(1)
         if dir is not None:
             dir = Path(dir)
@@ -44,12 +43,12 @@ class VCTDataset(PiskvorkVCTActions):
                 vectors.append((attack_vector, defense_vector, action))
             torch.save(vectors, path)
         attack_vector, defense_vector, action = random.choice(vectors)
-        attack = self.to_tensor(attack_vector)
-        defense = self.to_tensor(defense_vector)
+        attack = torch.Tensor(attack_vector)
+        defense = torch.Tensor(defense_vector)
         return attack, defense, action
     
     def split(self, ratio, shuffle=True):
         return super(VCTDataset, self).split(
-            ratio, shuffle, to_tensor=self.to_tensor, 
-            root=self.root, augmentation=self.augmentation
+            ratio, shuffle, root=self.root, 
+            augmentation=self.augmentation
         )

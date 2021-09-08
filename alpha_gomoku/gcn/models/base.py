@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.functional import embedding
 
 from ...cppboard import Board
 
@@ -31,21 +32,15 @@ class Model(nn.Module):
         self.embedding = embdding
         self.network = network
         
-    def to_tensor(self, x):
-        if isinstance(x, Board):
-            vector = x.vector
-        elif isinstance(x[0], int):
-            vector = x
-        else:
-            vector = Board(x).vector
-        vector = torch.Tensor(vector)
-        embedding = self.embedding([vector])[0]
+    def preprocess(self, vector):
+        embedding = self.embedding(vector)
         mask = torch.zeros_like(vector).float()
         mask[vector == Board.EMPTY] = 1
         return embedding, mask
     
     def forward(self, x):
-        return self.network(x)
+        embedding, mask = self.preprocess(x)
+        return self.network(embedding), mask
     
     
 def get_adjacent_matrix(radius):

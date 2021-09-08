@@ -74,18 +74,15 @@ class SupervisedTrainer(TrainerBase):
     
 class SupervisedPipelineBase(PipelineBase):
     
-    def to_tensor(self, x):
-        raise NotImplementedError
-    
     def make_datasets(self):
         args = self.args
         root = Path(args.root)
         vct_path = root / 'vct_actions.json'
         if vct_path.is_file():
-            dataset = VCTDataset(self.to_tensor)
+            dataset = VCTDataset()
             dataset.load(vct_path)
         else:
-            dataset = VCTDataset(self.to_tensor, args.root)
+            dataset = VCTDataset(args.root)
             dataset.save(vct_path)
         return dataset.split(args.split)
     

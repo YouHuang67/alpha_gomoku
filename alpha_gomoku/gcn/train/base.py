@@ -25,45 +25,42 @@ class VanillaGCNTrainer(SupervisedTrainer):
         self.value_weight = value_weight
 
     @staticmethod
-    def entropy(logits, mask):
+    def entropy(logits, masks):
         exp_logits = logits.exp()
         probs = exp_logits / exp_logits.sum(-1, keepdim=True)
-        probs.masked_fill_(mask == 0, 1)
+        probs.masked_fill_(masks == 0, 1)
         log_probs = probs.log()
-        return -log_probs.sum(-1) / mask.sum(-1)
+        return -log_probs.sum(-1) / masks.sum(-1)
 
     def loss(self, samples, training):
         model = self.models
         attack, defense, action = samples
-        attack_tensor, attack_mask = attack
-        attack_tensor = attack_tensor.to(self.device)
-        attack_mask = attack_mask.to(self.device)
+        attack = attack.to(self.device)
+        defense = defense.to(self.device)
         action = action.to(self.device)
-        attack_logits = model(attack_tensor)
-        attack_logits.masked_fill_(attack_mask == 0, -float('inf'))
+
+        attack_logits, attack_masks = model(attack)
+        attack_logits.masked_fill_(attack_masks == 0, -float('inf'))
         action_loss = F.cross_entropy(attack_logits, action)
-        defense_tensor, defense_mask = defense
-        defense_tensor = defense_tensor.to(self.device)
-        defense_mask = defense_mask.to(self.device)
-        defense_logits = model(defense_tensor)
-        defense_logits.masked_fill_(defense_mask == 0, -float('inf'))
-        attack_entropy = self.entropy(attack_logits, attack_mask).detach()
-        defense_entropy = self.entropy(defense_logits, defense_mask)
+        attack_entropy = self.entropy(attack_logits, attack_masks).detach()
+
+        defense_logits, defense_masks = model(defense)
+        defense_logits.masked_fill_(defense_masks == 0, -float('inf'))
+        defense_entropy = self.entropy(defense_logits, defense_masks)
         value_loss = (-attack_entropy + defense_entropy).mean()
+
         loss = action_loss + self.value_weight * value_loss
         acc = (attack_logits.argmax(-1) == action).float().mean()
-        entropy = torch.cat([attack_entropy, defense_entropy.detach()], dim=0)
+        entropy = torch.cat([attack_entropy.clone().detach(), 
+                             defense_entropy.clone().detach()], dim=0).cpu()
         labels = torch.cat([torch.ones_like(attack_entropy).cpu(), 
                             torch.zeros_like(defense_entropy).cpu()], dim=0)
-        auc = torch.Tensor([roc_auc_score(labels, entropy.clone().detach().cpu())])
+        auc = torch.Tensor([roc_auc_score(labels, entropy)])
         return OrderedDict(loss=loss, act_loss=action_loss, 
                            val_loss=value_loss, acc=acc, auc=auc)
         
         
 class GCNPipeline(SupervisedPipelineBase):
-    
-    def to_tensor(self, x):
-        return self.models.to_tensor(x)
     
     def make_dir(self):
         return str(Path(utils.ROOT) / 'data' / 'gcn' / utils.time_format())

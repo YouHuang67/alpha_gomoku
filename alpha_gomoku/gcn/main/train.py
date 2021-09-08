@@ -37,7 +37,7 @@ def parse_args():
 
 
 def main():
-    torch.multiprocessing.set_start_method('spawn')
+    # torch.multiprocessing.set_start_method('spawn')
     args = parse_args()
     GCNPipeline(**args.__dict__).train()
 
