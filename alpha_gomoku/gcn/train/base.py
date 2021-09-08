@@ -85,19 +85,19 @@ class GCNPipeline(SupervisedPipelineBase):
         args = self.args
         batch_size = args.batch_size
         train_set, test_set = self.datasets
-        for sample in tqdm(
-            DataLoader(train_set, batch_size=1, shuffle=False), 
-            desc='preparing train samples...'
-        ):
-            pass
-        for sample in tqdm(
-            DataLoader(test_set, batch_size=1, shuffle=False), 
-            desc='preparing test samples...'
-        ):
-            pass
+        if hasattr(args, 'train_dir'):
+            train_set.dir = Path(args.train_dir)
+        if not train_set.dir.is_dir():
+            train_set.prepare_samples('prepare train samples: ')
+        if hasattr(args, 'test_dir'):
+            test_set.dir = Path(args.test_dir)
+        if not test_set.dir.is_dir():
+            test_set.prepare_samples('prepare test samples: ')
         dataloaders = (
-            DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=16),
-            DataLoader(test_set, batch_size=2*batch_size, shuffle=False, num_workers=16)
+            DataLoader(train_set, batch_size=batch_size, 
+                       shuffle=True, num_workers=args.num_workers),
+            DataLoader(test_set, batch_size=2*batch_size, 
+                       shuffle=False, num_workers=args.num_workers)
         )
         return VanillaGCNTrainer(
             dataloaders, self.models, self.optimizers, 

@@ -1,8 +1,10 @@
 import time
 import random
+from tqdm import tqdm
 from pathlib import Path
 
 import torch
+from torch.utils.data import DataLoader
 
 from .. import utils
 from ..cppboard import Board
@@ -11,13 +13,21 @@ from .piskvork import PiskvorkVCTActions
 
 class VCTDataset(PiskvorkVCTActions):
     
-    def __init__(self, to_tensor, root='', augmentation=True):
+    def __init__(self, to_tensor, root='', augmentation=True, dir=None):
         super(VCTDataset, self).__init__(root, augmentation)
         self.to_tensor = to_tensor
         time.sleep(1)
-        dir = Path(root) / '_temp_tensors' / utils.time_format()
-        dir.mkdir(parents=True, exist_ok=False)
+        if dir is not None:
+            dir = Path(dir)
+            assert dir.is_dir()
+        else:
+            dir = Path(root) / '_temp_tensors' / utils.time_format()
+            dir.mkdir(parents=True, exist_ok=False)
         self.dir = dir
+
+    def prepare_samples(self, desc=''):
+        for sample in tqdm(DataLoader(self, batch_size=1, shuffle=False), desc=desc):
+            pass
         
     def __getitem__(self, item):
         path = self.dir / f'{item}.pth'

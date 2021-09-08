@@ -1,5 +1,7 @@
 import argparse
 
+import torch
+
 from alpha_gomoku import utils
 from alpha_gomoku.gcn.train import GCNPipeline
 
@@ -10,6 +12,9 @@ def parse_args():
     # dataset
     parser.add_argument('--root', type=str, default='F:/repositories/gomocup/records')
     parser.add_argument('--split', type=float, default=0.75)
+    parser.add_argument('--train_dir', type=str, default='_temp_tensors/train')
+    parser.add_argument('--test_dir', type=str, default='_temp_tensors/test')
+    parser.add_argument('--num_workers', type=int, default=4)
     # model
     parser.add_argument('--embedding', type=str, default='PlayerEmbedding')
     parser.add_argument('--network', type=str, default='GraphConvolutionNetwork')
@@ -32,6 +37,7 @@ def parse_args():
 
 
 def main():
+    torch.multiprocessing.set_start_method('spawn')
     args = parse_args()
     GCNPipeline(**args.__dict__).train()
 
