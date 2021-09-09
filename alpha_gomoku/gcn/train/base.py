@@ -97,6 +97,6 @@ class GCNPipeline(SupervisedPipelineBase):
                        shuffle=False, num_workers=args.num_workers)
         )
         return VanillaGCNTrainer(
-            dataloaders, self.models, self.optimizers, 
+            dataloaders, self.models, self.optimizers[0], 
             value_weight=args.value_weight
         )

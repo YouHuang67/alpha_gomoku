@@ -12,12 +12,12 @@ class AuxiliaryEmbedding(PlayerEmbedding):
     
     def __init__(self, dim):
         super(AuxiliaryEmbedding, self).__init__(dim)
-        self.register_buffer('auxiliary', torch.randn(dim))
+        self.register_buffer('auxiliary', torch.randn(1, 1, dim))
         
     def forward(self, vectors):
         embedding = super(AuxiliaryEmbedding, self).forward(vectors)
-        auxiliary = F.noramlize(self.auxiliary, p=2)
-        auxiliary = auxiliary.view(1, 1, -1).repeat(embedding.size(0), 1, 1)
+        auxiliary = F.normalize(self.auxiliary, p=2, dim=-1)
+        auxiliary = auxiliary.repeat(embedding.size(0), 1, 1)
         return torch.cat([auxiliary, embedding], dim=1)
     
     

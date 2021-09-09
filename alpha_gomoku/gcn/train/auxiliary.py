@@ -3,7 +3,6 @@ from collections import OrderedDict
 from sklearn.metrics import roc_auc_score
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
@@ -12,7 +11,6 @@ from ..models import AuxiliaryModel
 from ..models import AuxiliaryEmbedding
 from ..models import GraphConvolutionNetwork
 from ..models import AuxiliaryGraphConvolution
-from .base import GCNPipeline
 from .base import VanillaGCNTrainer
 from .base import SupervisedPipelineBase
 
@@ -91,7 +89,7 @@ class AuxiliaryPipeline(SupervisedPipelineBase):
                        shuffle=False, num_workers=args.num_workers)
         )
         return AuxiliaryTrainer(
-            dataloaders, self.models, self.optimizers, 
+            dataloaders, self.models, self.optimizers[0], 
             value_weight=args.value_weight
         )
         

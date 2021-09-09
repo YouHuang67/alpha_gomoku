@@ -11,6 +11,7 @@ from .. import utils
 from ..datasets import VCTDataset
 from .base import TrainerBase
 from .base import PipelineBase
+from .scheduler import get_scheduler
 
 
 class SupervisedTrainer(TrainerBase):
@@ -79,10 +80,10 @@ class SupervisedPipelineBase(PipelineBase):
         root = Path(args.root)
         vct_path = root / 'vct_actions.json'
         if vct_path.is_file():
-            dataset = VCTDataset()
+            dataset = VCTDataset(load_all_samples=args.load_all_samples)
             dataset.load(vct_path)
         else:
-            dataset = VCTDataset(args.root)
+            dataset = VCTDataset(args.root, load_all_samples=args.load_all_samples)
             dataset.save(vct_path)
         return dataset.split(args.split)
     
@@ -90,10 +91,13 @@ class SupervisedPipelineBase(PipelineBase):
         args = self.args
         optimizer_cls = utils.optim_cls_dict[args.optimizer.lower()]
         optimizer_args = utils.get_func_kwargs(optimizer_cls, args.__dict__)
-        return optimizer_cls(self.models.parameters(), **optimizer_args)
+        optimizer = optimizer_cls(self.models.parameters(), **optimizer_args)
+        scheduler = get_scheduler(optimizer)
+        return optimizer, scheduler
     
     def train(self):
         args = self.args
+        _, scheduler = self.optimizers
         trainer = self.trainer
         losses = OrderedDict()
         for epoch in range(1, args.epochs+1):
@@ -103,6 +107,8 @@ class SupervisedPipelineBase(PipelineBase):
             for lossname, lossval in trainer.eval().items():
                 losses.setdefault(lossname, list()).append(lossval)
             self.save(losses)
+            if scheduler is not None:
+                scheduler.step()
         return losses
             
         
