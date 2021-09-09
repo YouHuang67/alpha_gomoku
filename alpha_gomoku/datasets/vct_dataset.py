@@ -21,7 +21,6 @@ class VCTDataset(PiskvorkVCTActions):
             assert dir.is_dir()
         else:
             dir = Path(root) / '_temp_tensors' / utils.time_format()
-            dir.mkdir(parents=True, exist_ok=False)
         self.dir = dir
         self.load_all_samples = load_all_samples
         self.vectors = dict()
@@ -46,6 +45,7 @@ class VCTDataset(PiskvorkVCTActions):
                     defense_vector = board.vector
                     action = vct_action[0] * Board.BOARD_SIZE + vct_action[1]
                     vectors.append((attack_vector, defense_vector, action))
+                self.dir.mkdir(parents=True, exist_ok=False)
                 torch.save(vectors, path)
             if self.load_all_samples:
                 self.vectors[item] = vectors
