@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument('--dim', type=int, default=256)
     parser.add_argument('--hidden_dim', type=int, default=64)
     parser.add_argument('--radius', type=int, default=6)
+    parser.add_argument('--all_gcn', type=utils.str2bool, default=False)
     # Residual
     parser.add_argument('--block_num', type=int, default=8)
     # GCNII
