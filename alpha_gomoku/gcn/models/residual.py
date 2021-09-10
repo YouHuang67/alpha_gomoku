@@ -115,13 +115,15 @@ class GraphConvolutionNetwork(NetworkBase):
 
     def __init__(
             self, in_dim, hidden_dim, block_num, 
-            radius=6, gcn_cls=GraphConvolutionLayer
+            radius=6, gcn_cls=GraphConvolutionLayer, all_gcn=False
         ):
         super(GraphConvolutionNetwork, self).__init__()
         layers = []
         in_dim //= 4
         for _ in range(block_num):
-            layers.append(GraphResidualBlock(in_dim, hidden_dim, radius, gcn_cls))
+            layers.append(GraphResidualBlock(
+                in_dim, hidden_dim, radius, gcn_cls, all_gcn=all_gcn
+            ))
             in_dim = hidden_dim
         self.backbone = nn.Sequential(*layers)
         in_dim *= GraphResidualBlock.expansion
