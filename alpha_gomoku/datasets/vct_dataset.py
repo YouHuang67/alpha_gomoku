@@ -45,7 +45,7 @@ class VCTDataset(PiskvorkVCTActions):
                     defense_vector = board.vector
                     action = vct_action[0] * Board.BOARD_SIZE + vct_action[1]
                     vectors.append((attack_vector, defense_vector, action))
-                self.dir.mkdir(parents=True, exist_ok=False)
+                self.dir.mkdir(parents=True, exist_ok=True)
                 torch.save(vectors, path)
             if self.load_all_samples:
                 self.vectors[item] = vectors

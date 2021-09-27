@@ -105,7 +105,7 @@ class SupervisedPipelineBase(PipelineBase):
             for lossname, lossval in trainer.step(desc).items():
                 losses.setdefault(lossname, list()).append(lossval)
             for lossname, lossval in trainer.eval().items():
-                losses.setdefault(lossname, list()).append(lossval)
+                losses.setdefault('val_' + lossname, list()).append(lossval)
             self.save(losses)
             if scheduler is not None:
                 scheduler.step()

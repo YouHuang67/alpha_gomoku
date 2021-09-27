@@ -40,12 +40,14 @@ class PipelineBase(object):
         else:
             self.args.dir = dir
             self.dirs = self.make_dirs()
-            self.args.__dict__.update(utils.json_load(self.dirs['config']))
+            config = utils.json_load(self.dirs['config'])
+            config.pop('root', None)
+            self.args.__dict__.update(config)
         utils.set_seed(self.args.seed)
         self.datasets = self.make_datasets()
         self.models = self.make_models()
         if dir is not None:
-            self.load_state_dict(torch.load(self.dirs['weights']))
+            self.load_state_dict(torch.load(self.dirs['weights'], map_location='cpu'))
         self.optimizers = self.make_optimizers()
         self.trainer = self.make_trainer()
         

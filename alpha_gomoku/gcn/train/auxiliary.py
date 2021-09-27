@@ -1,10 +1,13 @@
+import matplotlib.pyplot as plt
 from pathlib import Path
 from collections import OrderedDict
 from sklearn.metrics import roc_auc_score
 
 import torch
 import torch.nn.functional as F
+from torch.utils import data
 from torch.utils.data import DataLoader
+from tqdm.std import tqdm
 
 from ... import utils
 from ..models import AuxiliaryModel
@@ -93,3 +96,45 @@ class AuxiliaryPipeline(SupervisedPipelineBase):
             value_weight=args.value_weight
         )
         
+        
+class ValueVisualization(AuxiliaryPipeline):
+    
+    def make_dirs(self):
+        dirs = super(ValueVisualization, self).make_dirs()
+        dirs['values'] = dirs['dir'] / 'values.pth'
+        return dirs
+    
+    @torch.no_grad()
+    def visualize_values(self):
+        dataloader = self.trainer.dataloaders[1]
+        model = self.models.eval()
+        value_path = self.dirs['values']
+        if value_path.is_file():
+            values = torch.load(value_path, map_location='cpu')
+            attack_values = values['attack']
+            defense_values = values['defense']
+        else:
+            attack_values = []
+            defense_values = []
+            for samples in tqdm(dataloader, 'get values: '):
+                attack, defense, _ = samples
+                attack = attack.to(self.device)
+                defense = defense.to(self.device)
+                attack_logits, attack_masks = model(attack)
+                attack_logits.masked_fill_(attack_masks == 0, -float('inf'))
+                defense_logits, defense_masks = model(defense)
+                defense_logits.masked_fill_(defense_masks == 0, -float('inf'))
+                attack_values.append(
+                    F.softmax(attack_logits, dim=1)[:, 0].detach().cpu()
+                )
+                defense_values.append(
+                    F.softmax(defense_logits, dim=1)[:, 0].detach().cpu()
+                )
+            attack_values = torch.cat(attack_values, dim=0)
+            defense_values = torch.cat(defense_values, dim=0)
+            torch.save({'attack': attack_values, 'defense': defense_values}, value_path)
+        plt.hist(attack_values.numpy(), bins=200, density=True, color='g', alpha=1)
+        plt.hist(defense_values.numpy(), bins=200, density=True, color='r', alpha=0.2)
+        plt.legend(['attack', 'defense'], loc='upper center')
+        plt.title('Log Values')
+        plt.show()
