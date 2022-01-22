@@ -10,7 +10,9 @@ from collections import Iterable
 import torch
 
 
-ROOT = str(Path(__file__).parents[0])
+ROOT = Path(__file__).parents[0]
+DATA_DIR = ROOT / 'data'
+LOG_DIR = ROOT / 'logs'
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 

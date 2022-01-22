@@ -184,3 +184,9 @@ data/
 # temp
 temp*
 _temp*
+
+# log
+logs/
+
+# pycharm
+.idea/
