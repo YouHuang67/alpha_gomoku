@@ -28,12 +28,19 @@ class ResNetTrainer(pl.LightningModule):
 
     def configure_optimizers(self):
         args = self.hparams
-        optimizer = torch.optim.SGD(
-            self.model.parameters(), lr=args.lr_max,
-            momentum=0.9, weight_decay=5e-4
-        )
-        scheduler = schedule.get_scheduler(args, optimizer)
-        return [optimizer], [scheduler]
+        optimizer_cls = {
+            k.lower(): v for k, v in torch.optim.__dict__.items()
+            if isinstance(v, type) and issubclass(v, torch.optim.Optimizer)
+        }[args.optimizer.lower()]
+        kwargs = {'lr': args.lr_max, 'weight_decay': 5e-4}
+        if optimizer_cls == torch.optim.SGD:
+            kwargs['momentum'] = 0.9
+        optimizer = optimizer_cls(self.model.parameters(), **kwargs)
+        if args.lr_schedule.lower() == 'none':
+            scheduler = []
+        else:
+            scheduler = [schedule.get_scheduler(args, optimizer)]
+        return [optimizer], scheduler
 
     def training_step(self, batch, batch_idx):
         model = self.model
@@ -97,11 +104,12 @@ def parse_args():
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--resume_dir', type=str)
     parser.add_argument('--seed', default=42, type=int)
-    parser.add_argument('--model', default='PreActResNet50')
+    parser.add_argument('--model', default='PreActResNet50', type=str)
+    parser.add_argument('--optimizer', default='SGD', type=str)
     parser.add_argument('--lr_schedule', default='piecewise',
                         choices=['superconverge', 'piecewise', 'linear',
                                  'piecewisesmoothed', 'piecewisezoom',
-                                 'onedrop', 'multipledecay', 'cosine'])
+                                 'onedrop', 'multipledecay', 'cosine', 'none'])
     parser.add_argument('--lr_max', default=0.1, type=float)
     parser.add_argument('--lr_one_drop', default=0.01, type=float)
     parser.add_argument('--lr_drop_epoch', default=100, type=int)
@@ -109,7 +117,7 @@ def parse_args():
     parser.add_argument('--epochs', default=200, type=int)
     # advanced setting
     parser.add_argument('--kernel_one_level', default=0, type=int)
-    parser.add_argument('--split_ratio', default=0.9, type=float)
+    parser.add_argument('--split_ratio', default=0.25, type=float)
     return parser.parse_args()
 
 
