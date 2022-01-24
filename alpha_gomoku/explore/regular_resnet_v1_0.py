@@ -104,6 +104,13 @@ class ResNetTrainer(pl.LightningModule):
             dataset, batch_size=args.batch_size, shuffle=False, num_workers=2
         )
 
+    def on_fit_end(self):
+        args = self.hparams
+        weight_dir = utils.DATA_DIR / 'weights' / 'explore' / 'regular_resnet' / 'v1'
+        weight_dir.mkdir(parents=True, exist_ok=True)
+        weight_path = weight_dir / f'{args.model.lower()}_kl_{args.kernel_one_level}.pth'
+        torch.save(self.model[1].state_dict(), weight_path)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -161,10 +168,6 @@ def main():
             default_root_dir=default_root_dir
         )
     trainer.fit(ppl)
-    weight_dir = utils.DATA_DIR / 'weights' / 'explore' / 'regular_resnet' / 'v1'
-    weight_dir.mkdir(parents=True, exist_ok=True)
-    weight_path = weight_dir / f'{args.model.lower()}_kl_{args.kernel_one_level}.pth'
-    torch.save(ppl.model[1].state_dict(), weight_path)
 
 
 if __name__ == '__main__':
