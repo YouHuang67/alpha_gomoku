@@ -57,8 +57,9 @@ class ResNetTrainer(pl.LightningModule):
             indices = actions[mask].long().view(-1, 1)
             negative_boards.scatter_(-1, indices, players[mask].view(-1, 1))
             boards[mask] = negative_boards.reshape(-1, *boards.shape[1:])
+            players[mask] = 1 - players[mask]
 
-        out = model(boards)
+        out = model((boards, players))
         acc = (out[~mask].argmax(-1) == actions[~mask]).float().mean()
         self.log('acc', acc, on_step=False, on_epoch=True)
 
@@ -75,7 +76,7 @@ class ResNetTrainer(pl.LightningModule):
         boards, actions, players = batch
         sample_size = boards.size(0)
 
-        out = model(boards)
+        out = model((boards, players))
         acc = (out.argmax(-1) == actions).float().mean()
         self.log('val_acc', acc, on_step=False, on_epoch=True)
 
@@ -84,7 +85,7 @@ class ResNetTrainer(pl.LightningModule):
 
         indices = actions.long().view(-1, 1)
         boards.reshape(sample_size, -1).scatter_(-1, indices, players.view(-1, 1))
-        neg_prob = F.softmax(model(boards), dim=-1).max(-1)[0].mean()
+        neg_prob = F.softmax(model((boards, 1 - players)), dim=-1).max(-1)[0].mean()
         self.log('neg_prob', neg_prob, on_step=False, on_epoch=True)
 
     def train_dataloader(self):
