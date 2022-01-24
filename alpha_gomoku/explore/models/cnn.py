@@ -244,9 +244,9 @@ def WideResnet40_8(drop_rate=0.0, kernel_one_level=0):
     return WideResNet(40, 8, drop_rate, kernel_one_level)
 
 
-def WideResnet60_1(drop_rate=0.0, kernel_one_level=0):
-    return WideResNet(60, 1, drop_rate, kernel_one_level)
+def WideResnet64_1(drop_rate=0.0, kernel_one_level=0):
+    return WideResNet(64, 1, drop_rate, kernel_one_level)
 
 
-def WideResnet60_2(drop_rate=0.0, kernel_one_level=0):
-    return WideResNet(60, 2, drop_rate, kernel_one_level)
+def WideResnet64_2(drop_rate=0.0, kernel_one_level=0):
+    return WideResNet(64, 2, drop_rate, kernel_one_level)

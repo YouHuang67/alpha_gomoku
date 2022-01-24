@@ -43,11 +43,15 @@ class ResNetTrainer(pl.LightningModule):
         return [optimizer], scheduler
 
     def training_step(self, batch, batch_idx):
+        args = self.hparams
         model = self.model
         boards, actions, players = batch
         sample_size = boards.size(0)
 
-        mask = torch.rand(sample_size).to(boards.device) < 0.5
+        if args.only_positive_samples:
+            mask = torch.zeros(sample_size).to(boards.device) != 0
+        else:
+            mask = torch.rand(sample_size).to(boards.device) < 0.5
         if mask.any():
             negative_boards = boards[mask].reshape(mask.long().sum().item(), -1)
             indices = actions[mask].long().view(-1, 1)
@@ -61,7 +65,9 @@ class ResNetTrainer(pl.LightningModule):
         actions[mask] = out.argmax(-1)[mask]
         signs = torch.ones_like(mask).float()
         signs[mask] = -signs[mask]
-        return (signs * self.criterion(out, actions)).mean()
+        loss = (signs * self.criterion(out, actions)).mean()
+        self.log('loss', loss, on_step=False, on_epoch=True)
+        return loss
 
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
@@ -118,6 +124,7 @@ def parse_args():
     # advanced setting
     parser.add_argument('--kernel_one_level', default=0, type=int)
     parser.add_argument('--split_ratio', default=0.25, type=float)
+    parser.add_argument('--only_positive_samples', action='store_true')
     return parser.parse_args()
 
 
