@@ -163,5 +163,9 @@ def KernelOneUNet60_8():
     return KernelOneResUnet(60, 8)
 
 
+def KernelOneUNet100_2():
+    return KernelOneResUnet(100, 2)
+
+
 def KernelOneUNet160_2():
     return KernelOneResUnet(160, 2)
