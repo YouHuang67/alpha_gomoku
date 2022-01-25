@@ -131,7 +131,7 @@ class KernelOneResUnet(nn.Module):
             nn.Conv2d(3, 16, kernel_size=3, padding=1, bias=True),
             KernelOneResNet(16, depth, 8 * widen_factor)
         )
-        self.core = ResUnet(8 * widen_factor, widen_factor)
+        self.core = ResUnet(8 * widen_factor, 2)
 
     def forward(self, x):
         out = self.feature(x)
