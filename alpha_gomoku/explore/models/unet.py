@@ -175,3 +175,51 @@ def KernelOneUNet100_2():
 
 def KernelOneUNet160_2():
     return KernelOneResUnet(160, 2)
+
+
+class ASPPResUNet(nn.Module):
+
+    def __init__(self, depth, dilation, widen_factor):
+        super(ASPPResUNet, self).__init__()
+        self.features = nn.ModuleList([
+            nn.Sequential(
+                nn.Conv2d(
+                    3, 16, kernel_size=3, bias=True,
+                    padding=i+1, dilation=i+1,
+                ), KernelOneResNet(16, depth, 8 * widen_factor)
+            ) for i in range(dilation)
+        ])
+        self.core = ResUnet(8 * widen_factor * dilation, 2)
+
+    def forward(self, x):
+        out = torch.cat([
+            feature(x) for feature in self.features
+        ], dim=1)
+        size = 2 ** int(np.ceil(np.log(out.size(-1)) / np.log(2)))
+        out = F.interpolate(out, size, mode='bilinear')
+        out = self.core(out)
+        return F.interpolate(out, x.size(-1), mode='bilinear').view(x.size(0), -1)
+
+
+def ASPPResUNet40_4_2():
+    return ASPPResUNet(40, 4, 2)
+
+
+def ASPPResUNet40_8_2():
+    return ASPPResUNet(40, 8, 2)
+
+
+def ASPPResUNet60_4_2():
+    return ASPPResUNet(60, 4, 2)
+
+
+def ASPPResUNet60_8_2():
+    return ASPPResUNet(60, 8, 2)
+
+
+def ASPPResUNet100_4_2():
+    return ASPPResUNet(100, 4, 2)
+
+
+def ASPPResUNet100_8_2():
+    return ASPPResUNet(100, 8, 2)
