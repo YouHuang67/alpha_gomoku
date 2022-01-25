@@ -7,7 +7,8 @@ import torch.nn.functional as F
 
 class ResidualConv(nn.Module):
 
-    def __init__(self, input_dim, output_dim, stride, padding, kernel_size=3):
+    def __init__(self, input_dim, output_dim, stride, padding,
+                 kernel_size=3, shortcut=False):
         super(ResidualConv, self).__init__()
 
         self.conv_block = nn.Sequential(
@@ -20,10 +21,13 @@ class ResidualConv(nn.Module):
             nn.ReLU(),
             nn.Conv2d(output_dim, output_dim, kernel_size=kernel_size, padding=(kernel_size - 1) // 2),
         )
-        self.conv_skip = nn.Sequential(
-            nn.Conv2d(input_dim, output_dim, kernel_size=kernel_size, stride=stride, padding=(kernel_size - 1) // 2),
-            nn.BatchNorm2d(output_dim),
-        )
+        if shortcut and input_dim == output_dim and stride == 1:
+            self.conv_skip = nn.Sequential()
+        else:
+            self.conv_skip = nn.Sequential(
+                nn.Conv2d(input_dim, output_dim, kernel_size=kernel_size, stride=stride, padding=(kernel_size - 1) // 2),
+                nn.BatchNorm2d(output_dim),
+            )
 
     def forward(self, x):
         return self.conv_block(x) + self.conv_skip(x)
@@ -107,9 +111,11 @@ class KernelOneResNet(nn.Module):
         super(KernelOneResNet, self).__init__()
         assert depth % 2 == 0
 
-        pre_conv = ResidualConv(channel, output_dim, 1, 0, 1)
+        pre_conv = ResidualConv(
+            channel, output_dim, 1, 0, 1, shortcut=True
+        )
         self.backbone = nn.Sequential(pre_conv, *[
-            ResidualConv(output_dim, output_dim, 1, 0, 1)
+            ResidualConv(output_dim, output_dim, 1, 0, 1, shortcut=True)
             for _ in range(depth // 2 - 1)
         ])
 
