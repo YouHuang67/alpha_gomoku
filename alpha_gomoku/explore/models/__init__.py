@@ -1,5 +1,6 @@
 from .cnn import *
 from .unet import *
+from .vit import *
 
 
 class BoardToTensor(nn.Module):
