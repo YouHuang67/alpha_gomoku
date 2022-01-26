@@ -326,5 +326,9 @@ def KernelOneWideResNet80_16_2(drop_rate=0.0):
     return KernelOneWideResNet(80, 16, 2, drop_rate=drop_rate)
 
 
+def KernelOneWideResNet160_16_1(drop_rate=0.0):
+    return KernelOneWideResNet(160, 16, 1, drop_rate=drop_rate)
+
+
 def KernelOneWideResNet160_16_2(drop_rate=0.0):
     return KernelOneWideResNet(160, 16, 2, drop_rate=drop_rate)
