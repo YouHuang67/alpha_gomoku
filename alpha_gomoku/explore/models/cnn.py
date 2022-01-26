@@ -250,3 +250,81 @@ def WideResnet64_1(drop_rate=0.0, kernel_one_level=0):
 
 def WideResnet64_2(drop_rate=0.0, kernel_one_level=0):
     return WideResNet(64, 2, drop_rate, kernel_one_level)
+
+
+class KernelOneWideResNet(nn.Module):
+
+    def __init__(self, pre_depth, depth, widen_factor=2, drop_rate=0.0):
+        super(KernelOneWideResNet, self).__init__()
+        assert((depth - 4) % 6 == 0)
+        n = (depth - 4) / 6
+        nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
+        block = BasicBlock
+        # 1st conv before any network block
+        self.conv1 = nn.Conv2d(
+            3, nChannels[0], kernel_size=3, stride=1, padding=1, bias=False
+        )
+        self.feature = NetworkBlock(
+            pre_depth // 2, nChannels[0], nChannels[1], block, 1, drop_rate, 1
+        )
+        # 1st block
+        self.block1 = NetworkBlock(n, nChannels[1], nChannels[1], block, 1, drop_rate, 3)
+        # 2nd block
+        self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 1, drop_rate, 3)
+        # 3rd block
+        self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 1, drop_rate, 3)
+        # global average pooling and classifier
+        self.bn1 = nn.BatchNorm2d(nChannels[3])
+        self.relu = nn.ReLU(inplace=True)
+        self.fc = nn.Conv2d(nChannels[3], 1, kernel_size=1, bias=True)
+        self.nChannels = nChannels[3]
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                m.bias.data.zero_()
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.feature(out)
+        out = self.block1(out)
+        out = self.block2(out)
+        out = self.block3(out)
+        out = self.relu(self.bn1(out))
+        return self.fc(out).view(x.size(0), -1)
+
+
+def KernelOneWideResNet40_16_1(drop_rate=0.0):
+    return KernelOneWideResNet(40, 16, 1, drop_rate=drop_rate)
+
+
+def KernelOneWideResNet40_16_2(drop_rate=0.0):
+    return KernelOneWideResNet(40, 16, 2, drop_rate=drop_rate)
+
+
+def KernelOneWideResNet40_40_1(drop_rate=0.0):
+    return KernelOneWideResNet(40, 40, 1, drop_rate=drop_rate)
+
+
+def KernelOneWideResNet40_40_2(drop_rate=0.0):
+    return KernelOneWideResNet(40, 40, 2, drop_rate=drop_rate)
+
+
+def KernelOneWideResNet60_16_1(drop_rate=0.0):
+    return KernelOneWideResNet(60, 16, 1, drop_rate=drop_rate)
+
+
+def KernelOneWideResNet60_16_2(drop_rate=0.0):
+    return KernelOneWideResNet(60, 16, 2, drop_rate=drop_rate)
+
+
+def KernelOneWideResNet80_16_2(drop_rate=0.0):
+    return KernelOneWideResNet(80, 16, 2, drop_rate=drop_rate)
+
+
+def KernelOneWideResNet160_16_2(drop_rate=0.0):
+    return KernelOneWideResNet(160, 16, 2, drop_rate=drop_rate)

@@ -131,6 +131,7 @@ def parse_args():
     parser.add_argument('--epochs', default=200, type=int)
     # advanced setting
     parser.add_argument('--kernel_one_level', default=0, type=int)
+    parser.add_argument('--drop_rate', default=0.0, type=float)
     parser.add_argument('--split_ratio', default=0.25, type=float)
     parser.add_argument('--only_positive_samples', action='store_true')
     return parser.parse_args()
