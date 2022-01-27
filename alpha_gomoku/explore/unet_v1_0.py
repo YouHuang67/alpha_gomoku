@@ -65,6 +65,7 @@ class ResNetTrainer(pl.LightningModule):
 
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
+        args = self.hparams
         model = self.model
         boards, actions, players = batch
         sample_size = boards.size(0)
@@ -72,6 +73,10 @@ class ResNetTrainer(pl.LightningModule):
         out = model((boards, players))
         acc = (out.argmax(-1) == actions).float().mean()
         self.log('val_acc', acc, on_step=False, on_epoch=True)
+        top_acc = (
+            out.argsort(dim=-1, descending=True)[:, :args.top_k] == actions.view(-1, 1)
+        ).float().sum(-1).mean()
+        self.log(f'top_{args.top_k}_acc', top_acc, on_step=False, on_epoch=True)
 
         pos_prob = torch.gather(F.softmax(out, dim=-1), -1, actions.view(-1, 1)).mean()
         self.log('pos_prob', pos_prob, on_step=False, on_epoch=True)
@@ -121,6 +126,7 @@ def parse_args():
     parser.add_argument('--lr_drop_epoch', default=100, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--epochs', default=200, type=int)
+    parser.add_argument('--top_k', default=5, type=int)
     # advanced setting
     parser.add_argument('--split_ratio', default=0.25, type=float)
     parser.add_argument('--only_positive_samples', action='store_true')
