@@ -232,6 +232,18 @@ def WideResnet16_2(drop_rate=0.0, kernel_one_level=0):
     return WideResNet(16, 2, drop_rate, kernel_one_level)
 
 
+def WideResnet16_4(drop_rate=0.0, kernel_one_level=0):
+    return WideResNet(16, 4, drop_rate, kernel_one_level)
+
+
+def WideResnet16_8(drop_rate=0.0, kernel_one_level=0):
+    return WideResNet(16, 8, drop_rate, kernel_one_level)
+
+
+def WideResnet16_16(drop_rate=0.0, kernel_one_level=0):
+    return WideResNet(16, 16, drop_rate, kernel_one_level)
+
+
 def WideResnet40_1(drop_rate=0.0, kernel_one_level=0):
     return WideResNet(40, 1, drop_rate, kernel_one_level)
 
