@@ -66,7 +66,13 @@ class ResNetTrainer(pl.LightningModule):
         actions[mask] = out.argmax(-1)[mask]
         signs = torch.ones_like(mask).float()
         signs[mask] = -signs[mask]
-        loss = (signs * self.criterion(out, actions)).mean()
+        if args.label_smoothing:
+            labels = F.one_hot(actions, out.size(-1)).float().to(actions.device)
+            labels[labels > 0] = 1 - args.label_smoothing
+            labels[labels == 0] = args.label_smoothing / (out.size(-1) - 1)
+            loss = -(signs * (labels * F.log_softmax(out, dim=-1)).sum(-1)).mean()
+        else:
+            loss = (signs * self.criterion(out, actions)).mean()
         self.log('loss', loss, on_step=False, on_epoch=True)
         return loss
 
@@ -141,6 +147,7 @@ def parse_args():
     parser.add_argument('--drop_rate', default=0.0, type=float)
     parser.add_argument('--split_ratio', default=0.25, type=float)
     parser.add_argument('--only_positive_samples', action='store_true')
+    parser.add_argument('--label_smoothing', default=0.0, type=float)
     return parser.parse_args()
 
 
