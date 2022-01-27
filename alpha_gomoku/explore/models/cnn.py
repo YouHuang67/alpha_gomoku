@@ -125,9 +125,30 @@ def PreActResNet50(kernel_one_level=0):
     return PreActResNet([3, 4, 6, 3], True, kernel_one_level=kernel_one_level)
 
 
+class SELayer(nn.Module):
+
+    def __init__(self, channel, reduction=16):
+        super(SELayer, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.avg_pool(x).view(b, c)
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y.expand_as(x)
+
+
 class BasicBlock(nn.Module):
 
-    def __init__(self, in_planes, out_planes, stride, drop_rate=0.0, kernel_size=3):
+    def __init__(self, in_planes, out_planes, stride,
+                 drop_rate=0.0, kernel_size=3,
+                 se_layer=False, se_reduction=16):
         super(BasicBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.relu1 = nn.ReLU(inplace=True)
@@ -146,6 +167,7 @@ class BasicBlock(nn.Module):
         self.convShortcut = (not self.equalInOut) and nn.Conv2d(
             in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False
         ) or None
+        self.se_layer = se_layer and SELayer(out_planes, se_reduction)
 
     def forward(self, x):
         if not self.equalInOut:
@@ -156,23 +178,28 @@ class BasicBlock(nn.Module):
         if self.drop_rate > 0:
             out = F.dropout(out, p=self.drop_rate, training=self.training)
         out = self.conv2(out)
+        if self.se_layer:
+            out = self.se_layer(out)
         return torch.add(x if self.equalInOut else self.convShortcut(x), out)
 
 
 class NetworkBlock(nn.Module):
 
     def __init__(self, nb_layers, in_planes, out_planes, block, stride,
-                 drop_rate=0.0, kernel_size=3):
+                 drop_rate=0.0, kernel_size=3, se_layer=False, se_reduction=16):
         super(NetworkBlock, self).__init__()
         self.layer = self._make_layer(block, in_planes, out_planes,
-                                      nb_layers, stride, drop_rate, kernel_size)
+                                      nb_layers, stride, drop_rate, kernel_size,
+                                      se_layer, se_reduction)
 
     def _make_layer(self, block, in_planes, out_planes,
-                    nb_layers, stride, drop_rate, kernel_size):
+                    nb_layers, stride, drop_rate, kernel_size,
+                    se_layer, se_reduction):
         layers = []
         for i in range(int(nb_layers)):
             layers.append(block(i == 0 and in_planes or out_planes, out_planes,
-                                i == 0 and stride or 1, drop_rate, kernel_size))
+                                i == 0 and stride or 1, drop_rate, kernel_size,
+                                se_layer=se_layer, se_reduction=se_reduction))
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -181,7 +208,8 @@ class NetworkBlock(nn.Module):
 
 class WideResNet(nn.Module):
 
-    def __init__(self, depth, widen_factor=1, drop_rate=0.0, kernel_one_level=0):
+    def __init__(self, depth, widen_factor=1, drop_rate=0.0, kernel_one_level=0,
+                 se_layer=False, se_reduction=16):
         super(WideResNet, self).__init__()
         nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
         assert((depth - 4) % 6 == 0)
@@ -193,13 +221,16 @@ class WideResNet(nn.Module):
         )
         # 1st block
         self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, drop_rate,
-                                   (1 if kernel_one_level > 0 else 3))
+                                   (1 if kernel_one_level > 0 else 3),
+                                   se_layer=se_layer, se_reduction=se_reduction)
         # 2nd block
         self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 1, drop_rate,
-                                   (1 if kernel_one_level > 1 else 3))
+                                   (1 if kernel_one_level > 1 else 3),
+                                   se_layer=se_layer, se_reduction=se_reduction)
         # 3rd block
         self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 1, drop_rate,
-                                   (1 if kernel_one_level > 2 else 3))
+                                   (1 if kernel_one_level > 2 else 3),
+                                   se_layer=se_layer, se_reduction=se_reduction)
         # global average pooling and classifier
         self.bn1 = nn.BatchNorm2d(nChannels[3])
         self.relu = nn.ReLU(inplace=True)
@@ -212,7 +243,7 @@ class WideResNet(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-            elif isinstance(m, nn.Linear):
+            elif isinstance(m, nn.Linear) and m.bias is not None:
                 m.bias.data.zero_()
 
     def forward(self, x):
@@ -262,6 +293,26 @@ def WideResnet64_1(drop_rate=0.0, kernel_one_level=0):
 
 def WideResnet64_2(drop_rate=0.0, kernel_one_level=0):
     return WideResNet(64, 2, drop_rate, kernel_one_level)
+
+
+def SEWideResnet16_1(drop_rate=0.0, kernel_one_level=0, se_reduction=1):
+    return WideResNet(16, 1, drop_rate, kernel_one_level, se_layer=True,
+                      se_reduction=se_reduction)
+
+
+def SEWideResnet16_2(drop_rate=0.0, kernel_one_level=0, se_reduction=1):
+    return WideResNet(16, 2, drop_rate, kernel_one_level, se_layer=True,
+                      se_reduction=se_reduction)
+
+
+def SEWideResnet16_4(drop_rate=0.0, kernel_one_level=0, se_reduction=1):
+    return WideResNet(16, 4, drop_rate, kernel_one_level, se_layer=True,
+                      se_reduction=se_reduction)
+
+
+def SEWideResnet16_8(drop_rate=0.0, kernel_one_level=0, se_reduction=1):
+    return WideResNet(16, 8, drop_rate, kernel_one_level, se_layer=True,
+                      se_reduction=se_reduction)
 
 
 class KernelOneWideResNet(nn.Module):

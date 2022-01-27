@@ -137,6 +137,7 @@ def parse_args():
     parser.add_argument('--top_k', default=5, type=int)
     # advanced setting
     parser.add_argument('--kernel_one_level', default=0, type=int)
+    parser.add_argument('--se_reduction', default=1, type=int)
     parser.add_argument('--drop_rate', default=0.0, type=float)
     parser.add_argument('--split_ratio', default=0.25, type=float)
     parser.add_argument('--only_positive_samples', action='store_true')
