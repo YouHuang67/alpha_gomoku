@@ -46,7 +46,7 @@ class ResNetTrainer(pl.LightningModule):
             labels = F.one_hot(actions, out.size(-1)).float().to(actions.device)
             labels[labels > 0] = 1 - args.label_smoothing
             labels[labels == 0] = args.label_smoothing / (out.size(-1) - 1)
-            class_loss = -(labels * F.log_softmax(out, dim=-1).sum(-1)).mean()
+            class_loss = -(labels * F.log_softmax(out, dim=-1)).sum(-1).mean()
         else:
             class_loss = self.criterion(out, actions).mean()
         acc = (out.argmax(-1) == actions).float().mean()
