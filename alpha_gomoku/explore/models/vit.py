@@ -124,6 +124,22 @@ def ViT4_64_8(size=15, drop_rate=0.0):
                mlp_dim=2 * dim, dim_head=dim // heads, drop_rate=drop_rate)
 
 
+def ViT6_16_1(size=15, drop_rate=0.0):
+    depth = 6
+    dim = 16
+    heads = 1
+    return ViT(size=size, dim=dim, depth=depth, heads=heads,
+               mlp_dim=2 * dim, dim_head=dim // heads, drop_rate=drop_rate)
+
+
+def ViT6_16_2(size=15, drop_rate=0.0):
+    depth = 6
+    dim = 16
+    heads = 2
+    return ViT(size=size, dim=dim, depth=depth, heads=heads,
+               mlp_dim=2 * dim, dim_head=dim // heads, drop_rate=drop_rate)
+
+
 def ViT6_16_4(size=15, drop_rate=0.0):
     depth = 6
     dim = 16
