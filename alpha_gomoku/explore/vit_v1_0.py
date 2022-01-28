@@ -42,7 +42,13 @@ class ResNetTrainer(pl.LightningModule):
         sample_size = boards.size(0)
 
         out, pos_val_log = model((boards, players))
-        class_loss = self.criterion(out, actions)
+        if args.label_smoothing:
+            labels = F.one_hot(actions, out.size(-1)).float().to(actions.device)
+            labels[labels > 0] = 1 - args.label_smoothing
+            labels[labels == 0] = args.label_smoothing / (out.size(-1) - 1)
+            class_loss = -(labels * F.log_softmax(out, dim=-1).sum(-1)).mean()
+        else:
+            class_loss = self.criterion(out, actions).mean()
         acc = (out.argmax(-1) == actions).float().mean()
         self.log('class_loss', class_loss, on_step=False, on_epoch=True)
         self.log('acc', acc, on_step=False, on_epoch=True)
@@ -139,6 +145,7 @@ def parse_args():
     # advanced setting
     parser.add_argument('--split_ratio', default=0.25, type=float)
     parser.add_argument('--include_value', action='store_true')
+    parser.add_argument('--label_smoothing', default=0.0, type=float)
     return parser.parse_args()
 
 
