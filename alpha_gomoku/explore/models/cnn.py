@@ -315,6 +315,11 @@ def SEWideResnet16_8(drop_rate=0.0, kernel_one_level=0, se_reduction=1):
                       se_reduction=se_reduction)
 
 
+def SEWideResnet64_2(drop_rate=0.0, kernel_one_level=0, se_reduction=1):
+    return WideResNet(64, 2, drop_rate, kernel_one_level, se_layer=True,
+                      se_reduction=se_reduction)
+
+
 class KernelOneWideResNet(nn.Module):
 
     def __init__(self, pre_depth, depth, widen_factor=2, drop_rate=0.0):
