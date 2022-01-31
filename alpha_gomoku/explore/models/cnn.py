@@ -246,12 +246,14 @@ class WideResNet(nn.Module):
             elif isinstance(m, nn.Linear) and m.bias is not None:
                 m.bias.data.zero_()
 
-    def forward(self, x):
+    def forward(self, x, get_feat=False):
         out = self.conv1(x)
         out = self.block1(out)
         out = self.block2(out)
         out = self.block3(out)
         out = self.relu(self.bn1(out))
+        if get_feat:
+            return out, self.fc(out).view(x.size(0), -1)
         return self.fc(out).view(x.size(0), -1)
 
 
@@ -356,13 +358,15 @@ class KernelOneWideResNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
 
-    def forward(self, x):
+    def forward(self, x, get_feat=False):
         out = self.conv1(x)
         out = self.feature(out)
         out = self.block1(out)
         out = self.block2(out)
         out = self.block3(out)
         out = self.relu(self.bn1(out))
+        if get_feat:
+            return out, self.fc(out).view(x.size(0), -1)
         return self.fc(out).view(x.size(0), -1)
 
 
