@@ -35,15 +35,14 @@ class Board(object):
         self.cppboard.Move(self.action_flatten(*action))
         self.history.append(action)
         self.illegal_actions.add(action)
+        return self
 
     def evaluate(self, max_node_num=100000):
         actions = self.cppboard.Evaluate(max_node_num)
         return [self.action_unflatten(act) for act in actions]
 
     def copy(self):
-        board_copy = self.__class__(cppboard=self.cppboard)
-        board_copy.history = [act for act in self.history]
-        return board_copy
+        return self.__class__(self.history)
 
     @property
     def attacker(self):
