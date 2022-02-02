@@ -83,7 +83,7 @@ class Tree(object):
     def __init__(
         self, evaluator, visit_times=200,
         board=None, cpuct=1.0, verbose=1,
-        max_node_num=10000
+        max_node_num=100000
     ):
         self.evaluator = evaluator
         self.visit_times = visit_times
@@ -96,9 +96,14 @@ class Tree(object):
     def evaluate(self):
         root = self.root
         board = root.board
-        root_actions = board.evaluate(self.max_node_num)
-        if len(root_actions) and board.attacker == board.player:
-            return random.choice(root_actions)
+        actions = board.copy().evaluate(self.max_node_num)
+        if len(actions) and board.attacker == board.player:
+            return random.choice(actions)
+
+        evaluator = self.evaluator
+        if not root.is_expanded:
+            root.expand(self.expand(board, evaluator(board)[0]))
+
         iterator = range(self.visit_times)
         if self.verbose:
             iterator = tqdm(iterator, 'evaluating', ncols=80)
@@ -106,38 +111,40 @@ class Tree(object):
             node, depth = root.forward()
             board = node.board
             if node.is_expanded:
-                if board.attacker == board.player:
+                if board.player in [board.attacker, board.winner]:
                     node.backward(1, depth)
                 else:
                     node.backward(0, depth)
                 continue
-            if node is root and len(root_actions):
-                probs, value = self.evaluator(board, root_actions)
-            elif root in node.parents.values():
-                actions = board.evaluate(self.max_node_num)
-                if len(actions):
-                    if board.attacker == board.player:
-                        probs, value = dict(), 1.0
-                    else:
-                        probs, value = self.evaluator(board, actions)
+
+            max_node_num = self.max_node_num
+            if root not in node.parents.values():
+                max_node_num //= 10
+            actions = board.copy().evaluate(max_node_num)
+            if len(actions):
+                if board.attacker == board.player:
+                    probs, value = dict(), 1.0
                 else:
-                    probs, value = self.evaluator(board)
+                    probs, value = evaluator(board, actions)
             else:
-                probs, value = self.evaluator(board)
-            nodes = dict()
-            for action, prob in probs.items():
-                board_copy = board.copy().move(action)
-                key = board_copy.key
-                if key in self.nodes:
-                    self.nodes[key].update_prob(prob)
-                else:
-                    self.nodes[key] = Node(board_copy, prob, self.cpuct)
-                nodes[action] = self.nodes[key]
-            node.expand(nodes)
+                probs, value = evaluator(board)
+            node.expand(self.expand(board, probs))
             node.backward(value, depth)
         children = list(root.children.items())
         random.shuffle(children)
         return sorted(children, key=lambda x: x[1].visit)[-1][0]
+
+    def expand(self, board, probs):
+        nodes = dict()
+        for action, prob in probs.items():
+            board_copy = board.copy().move(action)
+            key = board_copy.key
+            if key in self.nodes:
+                self.nodes[key].update_prob(prob)
+            else:
+                self.nodes[key] = Node(board_copy, prob, self.cpuct)
+            nodes[action] = self.nodes[key]
+        return nodes
 
     def move(self, action):
         root = self.root
@@ -151,15 +158,15 @@ class Tree(object):
 
 def main():
     board = Board()
-    model = models.ValueWrapper(BoardWrapper(models.SEWideResnet16_1()))
-    weight_path = Path(__file__).parents[1] / 'data/weights/explore/ensemble/regular_resnet/v1/sewideresnet16_1.pth'
-    model.load_state_dict(torch.load(weight_path, map_location='cpu'))
+    model = models.ValueWrapper(BoardWrapper(models.SEWideResnet16_2()))
+    # weight_path = Path(__file__).parents[1] / 'data/weights/explore/ensemble/regular_resnet/v1/sewideresnet16_2.pth'
+    # model.load_state_dict(torch.load(weight_path, map_location='cpu'))
     evaluator = Evaluator(model)
     tree = Tree(evaluator, visit_times=200, board=board, verbose=1)
     while not board.is_over:
         print(board)
         action = tree.evaluate()
-        print(action)
+        print(board.player, action)
         board.move(action)
         tree.move(action)
     print(board)
