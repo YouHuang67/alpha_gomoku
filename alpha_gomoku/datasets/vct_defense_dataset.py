@@ -1,4 +1,5 @@
 import json
+import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 
@@ -34,7 +35,7 @@ class VCTDefenseActions(PiskvorkVCTActions):
         else:
             index, defense_actions = \
                 self.vct_defense_actions[item - len(self.vct_actions)]
-            actions, action = super(VCTDefenseActions, self).__getitem__(item)
+            actions, action = super(VCTDefenseActions, self).__getitem__(index)
             return [actions[0] + action], defense_actions
 
     def make_defense(self):
@@ -57,5 +58,33 @@ class VCTDefenseActions(PiskvorkVCTActions):
             data = json.load(json_file)
         self.vct_defense_actions = [(index, list(map(tuple, acts)))
                                     for index, acts in data['vct_defense_actions']]
+
+    def split(self, ratio, shuffle=True):
+        sample_num = len(self.vct_actions)
+        split = int(sample_num * ratio)
+        assert 0 < split < sample_num
+        if shuffle:
+            indice = np.argsort(np.random.rand(sample_num)).tolist()
+        else:
+            indice = list(range(sample_num))
+        actions = self.actions
+        vct_actions = self.vct_actions
+
+        first_set = self.__class__()
+        first_set.actions = list(actions)
+        first_set.vct_actions = [vct_actions[idx] for idx in indice[:split]]
+        second_set = self.__class__()
+        second_set.actions = list(actions)
+        second_set.vct_actions = [vct_actions[idx] for idx in indice[split:]]
+
+        mapping = [None] * sample_num
+        for new_idx, idx in enumerate(indice):
+            latter = new_idx >= split
+            mapping[idx] = (new_idx - split * int(latter), int(latter))
+        sets = [first_set, second_set]
+        for index, defense_actions in self.vct_defense_actions:
+            new_index, set_id = mapping[index]
+            sets[set_id].vct_defense_actions.append((new_index, defense_actions))
+        return first_set, second_set
 
 
