@@ -21,6 +21,7 @@ class BoardWrapper
         int Winner() const { return static_cast<int>(board.Winner()); }
         int Player() const { return static_cast<int>(board.GetPlayer()); }
         IntVector Key() const;
+        IntVector NextKey(int act) const;
         IntVector BoardVector() const;
         static IntVector HomogenousActions(int act);
 
@@ -113,6 +114,20 @@ inline
 IntVector BoardWrapper::Key() const
 {
     U64 key = board.Key();
+    static const std::size_t blockNum = 4, blockSize = 16;
+    static const U64 blockMask = (1 << blockSize) - 1;
+    IntVector keyVector(4, 0);
+    for (int i = 0; i < blockNum; i++)
+        keyVector[i] = static_cast<int>((key >> (i * blockSize)) & blockMask);
+    return keyVector;
+}
+
+inline
+IntVector BoardWrapper::NextKey(int act) const
+{
+    U64 key = board.UpdateZobristKey(
+        board.Key(), board.GetPlayer(), static_cast<UC>(act)
+    );
     static const std::size_t blockNum = 4, blockSize = 16;
     static const U64 blockMask = (1 << blockSize) - 1;
     IntVector keyVector(4, 0);
