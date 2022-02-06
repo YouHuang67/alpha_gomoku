@@ -244,6 +244,7 @@ class SelfPlayPipeline(object):
         main_net = self.main_net
         history_list = []
         start = time.time()
+        results = []
         for index, net in enumerate(self.nets):
             boards = self_play(main_net, net, self.num_boards, self.visit_times,
                                self.cpuct, self.verbose, self.max_node_num,
@@ -256,6 +257,12 @@ class SelfPlayPipeline(object):
                                 f'{prefix} net_{index} vs main')
             gc.collect()
             history_list.extend([board.history for board in boards])
+            black_wins = [int(board.winner == 0)
+                          for board in boards[:self.num_boards]]
+            white_wins = [int(board.winner == 1)
+                          for board in boards[self.num_boards:]]
+            ratio = sum(black_wins + white_wins) / float(len(boards))
+            results.append(f'net {index}: {ratio:.4f}')
         history_dir = self.root_dir / 'history'
         history_dir.mkdir(parents=True, exist_ok=True)
         index = len(list(history_dir.glob('*.json')))
@@ -263,6 +270,10 @@ class SelfPlayPipeline(object):
         num_actions = sum(len(his) for his in history_list)
         print(f'{num_actions} actions stored, ' +
               f'each action spends {(time.time() - start) / num_actions:.4f}')
+        results = ' | '.join(results)
+        print(results)
+        with open(history_dir / 'results.txt', 'a') as file:
+            file.write(f'{prefix} {results}\n')
 
 
 class Dataset(torch.utils.data.Dataset):
