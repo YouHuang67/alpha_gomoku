@@ -94,7 +94,8 @@ class Board(object):
     def __repr__(self):
         players = {act: 'O' if i % 2 else 'X' 
                    for i, act in enumerate(self.history[:-1])}
-        players[self.history[-1]] = {0: '@', 1: '%'}[len(self.history) % 2]
+        if len(self.history):
+            players[self.history[-1]] = {0: '@', 1: '%'}[len(self.history) % 2]
         board_string = '  '
         for col in range(self.BOARD_SIZE):
             if col < 10:

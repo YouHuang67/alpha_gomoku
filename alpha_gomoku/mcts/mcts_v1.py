@@ -19,6 +19,7 @@ class Node(object):
         self.cpuct = cpuct
         self.player = board.player
         self.key = board.key
+        self.level = len(board.history)
         self.reset()
 
     def reset(self):
@@ -76,6 +77,11 @@ class Node(object):
         self._prob += prob
         self._prob_n += 1
         return self
+
+    def detach(self):
+        for child in self.children.values():
+            child.parents.pop(self.key, None)
+        return self.key
 
 
 class Tree(object):

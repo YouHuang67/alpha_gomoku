@@ -125,7 +125,7 @@ class PolicyPipeline(pl.LightningModule):
         args = self.hparams
         weight_dir = utils.DATA_DIR / 'weights' / 'explore' / 'policy' / 'v1'
         weight_dir.mkdir(parents=True, exist_ok=True)
-        weight_path = weight_dir / f'{args.model.lower()}_kl_{args.kernel_one_level}.pth'
+        weight_path = weight_dir / f'{args.model.lower()}.pth'
         torch.save(self.model.state_dict(), weight_path)
 
 
