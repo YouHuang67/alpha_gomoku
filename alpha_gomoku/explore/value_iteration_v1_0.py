@@ -26,14 +26,13 @@ class MCTS(object):
     num_stones = Board.BOARD_SIZE ** 2
     device = utils.DEVICE
 
-    def __init__(self, policy_net, value_net, boards,
+    def __init__(self, model, boards,
                  visit_times=200, cpuct=1.0, verbose=1,
                  max_node_num=100000, alpha=1.0,
                  gamma_steps=10, gamma=0.25):
         self.__dict__.update({k: v for k, v in locals().items()
                               if k not in ['self', 'boards']})
-        self.policy_net = policy_net.to(self.device)
-        self.value_net = value_net.to(self.device)
+        self.model = model.to(self.device)
         self.roots = []
         self.node_tables = []
         for index, board in enumerate(boards):
@@ -67,8 +66,7 @@ class MCTS(object):
         board_tensors = torch.cat([func(board_tensors) for func in funcs], dim=0)
         players = torch.cat([players for func in funcs], dim=0)
 
-        inputs = (board_tensors, players)
-        logits, values = self.policy_net(inputs), self.value_net(inputs)
+        logits, values = self.model((board_tensors, players))
 
         logits = logits.reshape(len(funcs), -1, self.size, self.size)
         logits = torch.stack([func(log) for func, log in
@@ -183,24 +181,32 @@ class MCTS(object):
             self.roots.append(root)
 
 
-class ValueOutput(nn.Module):
+class EnsembleOutput(nn.Module):
+
+    def __init__(self):
+        super(EnsembleOutput, self).__init__()
+        self.bn = nn.BatchNorm1d(Board.BOARD_SIZE ** 2)
+        self.fc = nn.Linear(Board.BOARD_SIZE ** 2, 1, bias=True)
 
     def forward(self, x):
-        return torch.tanh(x.view(x.size(0), -1).mean(-1))
+        out = self.bn(x.view(x.size(0), -1))
+        out = self.fc(out).view(-1)
+        out = torch.tanh(out)
+        return x, out
 
 
-def self_play(nets_1, nets_2, num_boards, visit_times=200, cpuct=1.0, verbose=1,
+def self_play(model_1, model_2, num_boards, visit_times=200, cpuct=1.0, verbose=1,
               max_node_num=100000, alpha=1.0, gamma_steps=10, prefix=''):
     move = lambda bds, acts: list(map(lambda x: x[0].move(x[1]), list(zip(bds, acts))))
     gc.collect()
     boards = [Board() for _ in range(num_boards)]
-    mcts_1 = MCTS(*nets_1, boards, visit_times, cpuct,
+    mcts_1 = MCTS(model_1, boards, visit_times, cpuct,
                   verbose, max_node_num, alpha, gamma_steps)
     actions = mcts_1.search(f'{prefix} step: 0')
     move(boards, actions)
     mcts_1.move(actions)
 
-    mcts_2 = MCTS(*nets_2, boards, visit_times, cpuct,
+    mcts_2 = MCTS(model_2, boards, visit_times, cpuct,
                   verbose, max_node_num, alpha, gamma_steps)
 
     left_boards = boards[:]
@@ -217,12 +223,9 @@ def self_play(nets_1, nets_2, num_boards, visit_times=200, cpuct=1.0, verbose=1,
     return boards
 
 
-def get_model(model, weight_path=''):
-    backbone_cls = {k.lower(): v for k, v in models.__dict__.items()}[model.lower()]
-    model = nn.ModuleList([
-        nn.Sequential(models.BoardToTensor(), backbone_cls()),
-        nn.Sequential(models.BoardToTensor(), backbone_cls(), ValueOutput())
-    ])
+def get_model(backbone, weight_path=''):
+    backbone_cls = {k.lower(): v for k, v in models.__dict__.items()}[backbone.lower()]
+    model = nn.Sequential(models.BoardToTensor(), backbone_cls(), EnsembleOutput())
     if weight_path:
         model.load_state_dict(torch.load(weight_path, map_location='cpu'))
     return model.eval()
@@ -342,28 +345,22 @@ class PolicyPipeline(pl.LightningModule):
 
     def configure_optimizers(self):
         args = self.hparams
-        if args.include_policy:
-            model = self.model
-        else:
-            model = self.model[1]
         optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr_max,
+            self.model.parameters(), lr=args.lr_max,
             momentum=0.9, weight_decay=5e-4
         )
         return [optimizer], [schedule.get_scheduler(args, optimizer)]
 
     def training_step(self, batch, batch_idx):
-        args = self.hparams
-        policy_net, value_net = self.model
         *inputs, actions, values = batch
+        pred_log, pred_val = self.model(inputs)
         losses = []
 
-        if args.include_policy:
-            policy_loss = F.cross_entropy(policy_net(inputs), actions)
-            self.log('policy_loss', policy_loss, on_step=False, on_epoch=True)
-            losses.append(policy_loss)
+        policy_loss = F.cross_entropy(pred_log, actions)
+        self.log('policy_loss', policy_loss, on_step=False, on_epoch=True)
+        losses.append(policy_loss)
 
-        value_loss = (value_net(inputs) - values).square().mean()
+        value_loss = (pred_val - values).square().mean()
         self.log('value_loss', value_loss, on_step=False, on_epoch=True)
         losses.append(value_loss)
 
@@ -372,7 +369,8 @@ class PolicyPipeline(pl.LightningModule):
     def train_dataloader(self):
         args = self.hparams
         return torch.utils.data.DataLoader(
-            self.dataset, batch_size=args.batch_size, shuffle=True, num_workers=2
+            self.dataset, batch_size=args.batch_size,
+            shuffle=True, num_workers=2, drop_last=True
         )
 
     def val_dataloader(self):
@@ -399,10 +397,9 @@ def parse_args():
     parser.add_argument('--lr_one_drop', default=0.01, type=float)
     parser.add_argument('--lr_drop_epoch', default=100, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
-    parser.add_argument('--epochs', default=200, type=int)
     # self play
-    parser.add_argument('--num_boards', default=10, type=int)
-    parser.add_argument('--container_size', default=10, type=int)
+    parser.add_argument('--num_boards', default=5, type=int)
+    parser.add_argument('--container_size', default=20, type=int)
     parser.add_argument('--num_kept_models', default=5, type=int)
     parser.add_argument('--include_policy', action='store_true')
     return parser.parse_args()
@@ -417,10 +414,6 @@ def main():
         weight_dir.mkdir(parents=True, exist_ok=True)
         init_weight_path = weight_dir / f'{args.model.lower()}_{0:02d}.pth'
         init_model = get_model(args.model)
-        backbone_path = utils.DATA_DIR / 'weights' / 'explore' / \
-                        'policy' / 'v1' / f'{args.model.lower()}.pth'
-        assert backbone_path.is_file()
-        init_model[0].load_state_dict(torch.load(backbone_path, map_location='cpu'))
         torch.save(init_model.state_dict(), init_weight_path)
 
     if torch.cuda.is_available():
@@ -448,8 +441,18 @@ def main():
 
         ppl = PolicyPipeline(**args.__dict__, version='1.0',
                              model_index=model_index)
-        trainer = pl.Trainer(gpus=gpus, accelerator=accelerator,
-                             max_epochs=ppl.hparams.epochs,
+        num_samples = len(ppl.dataset)
+        if num_samples >= 10000:
+            epochs = 200
+        elif num_samples >= 1000:
+            epochs = 100
+        elif num_samples >= 100:
+            epochs = 50
+        elif num_samples >= 10:
+            epochs = 25
+        else:
+            epochs = 10
+        trainer = pl.Trainer(gpus=gpus, accelerator=accelerator, max_epochs=epochs,
                              default_root_dir=default_root_dir)
         trainer.fit(ppl)
 
