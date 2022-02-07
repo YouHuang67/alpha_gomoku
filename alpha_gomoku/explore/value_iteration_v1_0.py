@@ -331,17 +331,23 @@ class PolicyPipeline(pl.LightningModule):
         args = self.hparams
 
         self.root_dir = utils.DATA_DIR / 'value_iteration' / 'v1'
-
+        self.data_dir = self.root_dir / 'history'
         self.weight_dir = self.root_dir / 'weights'
         weight_path = self.weight_dir / f'{args.model.lower()}_{args.model_index:02d}.pth'
         self.model = get_model(args.model, weight_path)
 
+        self.dataset = self.make_dataset(args.container_size)
+
+    @staticmethod
+    def make_dataset(container_size):
         history_list = []
-        self.data_dir = self.root_dir / 'history'
-        for path in sorted(self.data_dir.glob('*.json'),
-                           key=str, reverse=True)[:args.container_size]:
-            history_list += [list(map(tuple, acts)) for acts in utils.json_load(path)]
-        self.dataset = Dataset(history_list, True)
+        root_dir = utils.DATA_DIR / 'value_iteration' / 'v1'
+        data_dir = root_dir / 'history'
+        for path in sorted(data_dir.glob('*.json'),
+                           key=str, reverse=True)[:container_size]:
+            history_list += [list(map(tuple, acts)) for acts in
+                             utils.json_load(path)]
+        return Dataset(history_list, True)
 
     def configure_optimizers(self):
         args = self.hparams
@@ -439,9 +445,7 @@ def main():
             SelfPlayPipeline(root_dir, args.model, args.num_boards).run(prefix)
             gc.collect()
 
-        ppl = PolicyPipeline(**args.__dict__, version='1.0',
-                             model_index=model_index)
-        num_samples = len(ppl.dataset)
+        num_samples = len(PolicyPipeline.make_dataset(args.container_size))
         if num_samples >= 10000:
             epochs = 200
         elif num_samples >= 1000:
@@ -452,6 +456,8 @@ def main():
             epochs = 25
         else:
             epochs = 10
+        ppl = PolicyPipeline(**args.__dict__, version='1.0',
+                             model_index=model_index, epochs=epochs)
         trainer = pl.Trainer(gpus=gpus, accelerator=accelerator, max_epochs=epochs,
                              default_root_dir=default_root_dir)
         trainer.fit(ppl)
