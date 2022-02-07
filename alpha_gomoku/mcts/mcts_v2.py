@@ -63,6 +63,7 @@ class Node(object):
                                                   self, depth + 1)
 
     def backward(self, value, depth):
+        self.value += value
         if depth:
             for parent in self.parents.values():
                 parent.backward(-value, depth - 1)
