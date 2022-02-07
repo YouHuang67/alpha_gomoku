@@ -484,8 +484,7 @@ def main():
         for index in range(num_batches, (model_index + 1) * args.container_size):
             gc.collect()
             prefix = f'{model_index}-{index}'
-            SelfPlayPipeline(root_dir, args.model,
-                             args.num_boards, **args.__dict__).run(prefix)
+            SelfPlayPipeline(root_dir, **args.__dict__).run(prefix)
             gc.collect()
 
         num_samples = len(PolicyPipeline.make_dataset(args.container_size))
