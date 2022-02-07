@@ -260,8 +260,8 @@ def get_model(backbone, weight_path=''):
 
 class SelfPlayPipeline(object):
 
-    def __init__(self, root_dir, model, num_boards, visit_times=200,
-                 cpuct=1.0, verbose=1, max_node_num=100000, max_random_steps=5):
+    def __init__(self, root_dir, model, num_boards, visit_times=200, cpuct=1.0,
+                 verbose=1, max_node_num=100000, max_random_steps=5, **kwargs):
         self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
         self.root_dir = Path(root_dir)
         weight_dir = self.root_dir / 'weights'
@@ -439,6 +439,12 @@ def parse_args():
     parser.add_argument('--container_size', default=20, type=int)
     parser.add_argument('--num_kept_models', default=5, type=int)
     parser.add_argument('--include_policy', action='store_true')
+    parser.add_argument('--visit_times', default=200, type=int)
+    parser.add_argument('--cpuct', default=1.0, type=float)
+    parser.add_argument('--verbose', default=1, type=int, choices=[0, 1])
+    parser.add_argument('--max_node_num', default=100000, type=int)
+    parser.add_argument('--max_random_steps', default=5, type=int)
+    parser.add_argument('--rand_init', action='store_true')
     return parser.parse_args()
 
 
@@ -449,9 +455,12 @@ def main():
     weight_dir = root_dir / 'weights'
     if not weight_dir.is_dir():
         weight_dir.mkdir(parents=True, exist_ok=True)
-        trained_weight_path = utils.DATA_DIR / \
-                              f'weights/explore/ensemble/v1/{args.model.lower()}.pth'
-        init_model = get_model(args.model, trained_weight_path)
+        if args.rand_init:
+            init_model = get_model(args.model)
+        else:
+            trained_weight_path = utils.DATA_DIR / \
+                                  f'weights/explore/ensemble/v1/{args.model.lower()}.pth'
+            init_model = get_model(args.model, trained_weight_path)
         init_weight_path = weight_dir / f'{args.model.lower()}_{0:02d}.pth'
         torch.save(init_model.state_dict(), init_weight_path)
 
@@ -475,7 +484,8 @@ def main():
         for index in range(num_batches, (model_index + 1) * args.container_size):
             gc.collect()
             prefix = f'{model_index}-{index}'
-            SelfPlayPipeline(root_dir, args.model, args.num_boards).run(prefix)
+            SelfPlayPipeline(root_dir, args.model,
+                             args.num_boards, **args.__dict__).run(prefix)
             gc.collect()
 
         num_samples = len(PolicyPipeline.make_dataset(args.container_size))

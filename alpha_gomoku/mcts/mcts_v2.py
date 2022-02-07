@@ -65,8 +65,8 @@ class Node(object):
     def backward(self, value, depth):
         self.value += value
         if depth:
-            for parent in self.parents.values():
-                parent.backward(-value, depth - 1)
+            for key in list(self.parents.keys()):
+                self.parents.pop(key).backward(-value, depth - 1)
 
     @property
     def is_leaf(self):
