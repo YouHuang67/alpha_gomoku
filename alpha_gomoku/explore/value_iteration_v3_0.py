@@ -76,7 +76,7 @@ class NetWrapper(nn.Module):
         for actions in action_list:
             indices = torch.LongTensor(actions).transpose(0, 1)
             values = torch.ones(len(actions)).long()
-            tensor = torch.sparse.Tensor(indices, values, size)
+            tensor = torch.sparse_coo_tensor(indices, values, size)
             tensors.append(tensor.to_dense())
         return torch.stack(tensors, dim=0).to(DEVICE)
 
@@ -115,7 +115,7 @@ class NetWrapper(nn.Module):
         for index, board in enumerate(board_list):
             actions = board.copy().evaluate(1)
             if len(actions):
-                masks[index, ~self.actions_to_tensors([actions])[0]] = False
+                masks[index, ~self.actions_to_tensors([actions])[0].bool()] = False
         masks = masks.view(-1, NUM_STONES)
         probs /= (masks.float() * probs).sum(-1, keepdim=True)
 
@@ -181,8 +181,10 @@ class MonteCarloTreeSearch(object):
                 visit_table[board.key] = {actions[0]: 1}
             else:
                 node_table = self.node_tables.setdefault(board, dict())
-                roots.append(Node.get_node(board, node_table, cpuct=self.cpuct,
-                                           table=node_table))
+                root = Node.get_node(board, node_table,
+                                     cpuct=self.cpuct, table=node_table)
+                root.board = board
+                roots.append(root)
                 indices.append(index)
 
         if len(roots) == 0:
@@ -231,7 +233,8 @@ class MonteCarloTreeSearch(object):
 
         return [self.visit_tables[board][board.key] for board in boards]
 
-    def sample_actions(self, visit_tables, taus=1.0):
+    @staticmethod
+    def sample_actions(visit_tables, taus=1.0):
         if isinstance(taus, (int, float)):
             taus = [taus] * len(visit_tables)
         final_actions = []
@@ -301,12 +304,36 @@ class SelfPlayPipeline(object):
         self.mcts_list = [MonteCarloTreeSearch(get_model(backbone, weight_path), **kwargs)
                           for weight_path in weight_paths]
 
-    def self_play(self, mcts_1, mcts_2):
-        boards = BOARD_GENERATOR(self.num_boards)
+    def self_play(self, mcts_1, mcts_2, boards, description=''):
         batch_size = self.batch_size
+        history_list = [board.history[:] for board in boards]
+        players = [board.player for board in boards]
+        records = OrderedDict()
         for batch_start in range(0, len(boards), batch_size):
-            batch_boards = boards[batch_start:batch_size + batch_size]
-            # todo
+            batch_boards = boards[batch_start:batch_start + batch_size]
+            pla_1, pla_2 = mcts_1, mcts_2
+            while len(batch_boards):
+                visit_tables = pla_1.evaluate(batch_boards, description)
+                actions = pla_1.sample_actions(visit_tables, taus=1.0)
+                for index, board in list(enumerate(batch_boards)):
+                    record = (visit_tables[index], actions[index])
+                    records.setdefault(board, list()).append(record)
+                    if board.move(actions[index]).is_over:
+                        batch_boards.remove(board)
+                pla_1, pla_2 = pla_2, pla_1
+            mcts_1.reset()
+            mcts_2.reset()
+        samples, wins_1, wins_2 = [], 0.0, 0.0
+        for index, board in enumerate(boards):
+            samples.append((history_list[index], records[board]))
+            wins_1 += float(board.winner == players[index])
+            wins_2 += float(board.winner == (1 - players[index]))
+        return samples, wins_1 / len(boards), wins_2 / len(boards)
+
+
+pl.seed_everything(100)
+sp = SelfPlayPipeline('SEWideResnet16_1', 10, 5)
+sp.self_play(sp.mcts_list[0], sp.mcts_list[0], BOARD_GENERATOR(10))
 
 
 def get_random_actions(steps, gap=3):
