@@ -483,7 +483,12 @@ class PolicyPipeline(pl.LightningModule):
         pred_log, pred_val = self.model(inputs)
         losses = []
 
-        policy_loss = -(action_tensors * F.log_softmax(pred_log, -1)).sum(-1).mean()
+        legal_masks = (inputs[0] == 2).reshape(*pred_log.size())
+        neg_inf = torch.zeros_like(pred_log) - torch.inf
+        pred_log = torch.where(legal_masks, pred_log, neg_inf)
+        log_prob = F.log_softmax(pred_log, -1)
+        log_prob = torch.where(legal_masks, log_prob, torch.zeros_like(log_prob))
+        policy_loss = -(action_tensors * log_prob).sum(-1).mean()
         self.log('policy_loss', policy_loss, on_step=False, on_epoch=True)
         losses.append(policy_loss)
 
