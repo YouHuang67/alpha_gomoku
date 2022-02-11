@@ -164,7 +164,7 @@ class MonteCarloTreeSearch(object):
         self.perturb_root = perturb_root
 
     def perturb(self, root):
-        if len(root.children) == 0:
+        if len(root.children) == 0 or self.noise_gamma == 0.0:
             return
         noise = np.random.dirichlet([self.noise_alpha] * len(root.children))
         gamma = self.noise_gamma
@@ -466,7 +466,10 @@ class PolicyPipeline(pl.LightningModule):
         super(PolicyPipeline, self).__init__()
         self.save_hyperparameters()
         args = self.hparams
-        weight_path = WEIGHT_DIR / f'{args.model.lower()}_{args.model_index:02d}.pth'
+        if args.from_scratch:
+            weight_path = ''
+        else:
+            weight_path = WEIGHT_DIR / f'{args.model.lower()}_{args.model_index:02d}.pth'
         self.model = get_model(args.model, weight_path)
         self.dataset = Dataset(args.container_size)
 
@@ -527,7 +530,7 @@ def parse_args():
     parser.add_argument('--lr_max', default=0.1, type=float)
     parser.add_argument('--lr_one_drop', default=0.01, type=float)
     parser.add_argument('--lr_drop_epoch', default=100, type=int)
-    parser.add_argument('--epochs', default=200, type=int)
+    parser.add_argument('--epochs', default=400, type=int)
     # self play
     parser.add_argument('--num_boards', default=100, type=int)
     parser.add_argument('--batch_size', default=5, type=int)
@@ -536,7 +539,10 @@ def parse_args():
     parser.add_argument('--cpuct', default=2.5, type=float)
     parser.add_argument('--max_node_num', default=100000, type=int)
     parser.add_argument('--rand_init', action='store_true')
+    parser.add_argument('--from_scratch', action='store_true')
     parser.add_argument('--num_runs', default=10, type=int)
+    parser.add_argument('--noise_alpha', default=0.03, type=float)
+    parser.add_argument('--noise_gamma', default=0.25, type=float)
     return parser.parse_args()
 
 
