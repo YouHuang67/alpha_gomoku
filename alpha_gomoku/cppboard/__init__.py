@@ -31,7 +31,11 @@ class Board(object):
         return action not in self.illegal_actions
 
     def move(self, action):
-        assert self.is_legal(action)
+        if not self.is_legal(action):
+            print(self)
+            print('action: ', action)
+            print('history: ', self.history)
+            exit()
         self.cppboard.Move(self.action_flatten(*action))
         self.history.append(action)
         self.illegal_actions.add(action)

@@ -136,7 +136,6 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
         threeTwo = threeOrTwo ^ threeXorTwo;
         if (!threeTwo) continue;
         UC* handle = actionTable[threeTwo];
-        bool found = false;
         for (int i = 1; i <= handle[0]; i++)
         {
             UC col = handle[i];
@@ -144,12 +143,10 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
             for (int j = 1; j <= threeActionsAtRow[0]; j++)
                 if (col == threeActionsAtRow[j])
                 {
-                    found = true;
                     actions[++actions[0]] = ActionFlatten(row, col);
-                    break;
+                    return POSITIVE;
                 }
         }
-        if (found) return POSITIVE;
     }
     for (int i = 1; i <= twoActions[0]; i++) 
         actions[++actions[0]] = twoActions[i];
