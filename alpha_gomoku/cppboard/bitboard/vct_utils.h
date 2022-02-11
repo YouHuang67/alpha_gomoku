@@ -79,6 +79,8 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
         };
         U32 threeOrActions = threeCodedActions[0] | threeCodedActions[1] |
                              threeCodedActions[2] | threeCodedActions[3];
+        // to check if there is a three in open two & three
+        static UC threeActionsAtRow[BOARD_SIZE + 1];
         if (threeOrActions)
         {
             U32 threeXorActions = threeCodedActions[0] ^ threeCodedActions[1] ^
@@ -91,8 +93,13 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
                 return POSITIVE;
             }
             UC* handle = actionTable[threeOrActions];
+            threeActionsAtRow[0] = 0;
             for (int i = 1; i <= handle[0]; i++)
+            {
                 threeActions[++threeActions[0]] = ActionFlatten(row, handle[i]);
+                // to check if there is a three in open two & three
+                threeActionsAtRow[++threeActionsAtRow[0]] = handle[i];
+            }
         }
 
         int openTwoIndex = GetShapeIndex(openTwo, ply, 1, row);
@@ -106,16 +113,6 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
                                openTwoCodedActions[2] | openTwoCodedActions[3];
         if (openTwoOrActions)
         {
-            U32 openTwoXorActions = openTwoCodedActions[0] ^ openTwoCodedActions[1] ^
-                                    openTwoCodedActions[2] ^ openTwoCodedActions[3];
-            U32 doubleOpenTwo = openTwoOrActions ^ openTwoXorActions;
-            if (doubleOpenTwo && 
-                !GetActions(BLACK == attacker ? WHITE: BLACK, THREE, true))
-            {
-                UC* handle = actionTable[doubleOpenTwo];
-                actions[++actions[0]] = ActionFlatten(row, handle[1]);
-                return POSITIVE;
-            }
             UC* handle = actionTable[openTwoOrActions];
             for (int i = 1; i <= handle[0]; i++)
                 twoActions[++twoActions[0]] = ActionFlatten(row, handle[i]);
@@ -139,8 +136,20 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
         threeTwo = threeOrTwo ^ threeXorTwo;
         if (!threeTwo) continue;
         UC* handle = actionTable[threeTwo];
-        actions[++actions[0]] = ActionFlatten(row, handle[1]);
-        return POSITIVE;
+        bool found = false;
+        for (int i = 1; i <= handle[0]; i++)
+        {
+            UC col = handle[i];
+            // to check if there is a three in open two & three
+            for (int j = 1; j <= threeActionsAtRow[0]; j++)
+                if (col == threeActionsAtRow[j])
+                {
+                    found = true;
+                    actions[++actions[0]] = ActionFlatten(row, col);
+                    break;
+                }
+        }
+        if (found) return POSITIVE;
     }
     for (int i = 1; i <= twoActions[0]; i++) 
         actions[++actions[0]] = twoActions[i];
