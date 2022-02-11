@@ -122,7 +122,7 @@ class NetWrapper(nn.Module):
         results = []
         for i, (ps, val) in enumerate(zip(probs, values)):
             results.append((dict(), val.item()))
-            for act in torch.where(masks[i])[0].numpy().tolist():
+            for act in torch.where(masks[i])[0].cpu().numpy().tolist():
                 results[-1][0][unflatten(act)] = ps[act].item()
         return results
 
@@ -152,14 +152,16 @@ def get_model(backbone, weight_path=''):
 
 class MonteCarloTreeSearch(object):
 
-    def __init__(self, model, num_iters=200, cpuct=2.5, max_node_num=100000,
-                 verbose=1, noise_alpha=0.03, noise_gamma=0.25, **kwargs):
-        self.model = NetWrapper(model, **kwargs)
+    def __init__(self, model, num_iters=200, cpuct=2.5,
+                 max_node_num=100000, verbose=1, noise_alpha=0.03,
+                 noise_gamma=0.25, perturb_root=True, **kwargs):
+        self.model = NetWrapper(model, **kwargs).to(DEVICE)
         self.num_iters, self.cpuct = num_iters, cpuct
         self.max_node_num, self.verbose = max_node_num, verbose
         self.noise_alpha, self.noise_gamma = noise_alpha, noise_gamma
         self.node_tables = OrderedDict()
         self.visit_tables = OrderedDict()
+        self.perturb_root = perturb_root
 
     def perturb(self, root):
         if len(root.children) == 0:
@@ -192,7 +194,7 @@ class MonteCarloTreeSearch(object):
 
         iters = range(self.num_iters)
         iters = tqdm(iters, description) if self.verbose else iters
-        perturb_flags = {root: True for root in roots}
+        perturb_flags = {root: self.perturb_root for root in roots}
         for _ in iters:
             nodes = []
             depths = []
@@ -282,7 +284,10 @@ class BoardGenerator(object):
             actions = self.actions[index][:step]
             actions = list(zip(*[Board.get_homogenous_actions(act)
                                  for act in actions]))
-            boards.append(Board(random.choice(actions)))
+            if len(actions):
+                boards.append(Board(random.choice(actions)))
+            else:
+                boards.append(Board())
         return boards
 
 
@@ -293,30 +298,32 @@ class SelfPlayPipeline(object):
 
     def __init__(self, backbone, num_boards, batch_size,
                  num_iters=200, cpuct=2.5, max_node_num=100000,
-                 noise_alpha=0.03, noise_gamma=0.25, gap=3):
+                 noise_alpha=0.03, noise_gamma=0.25, gap=3, **kwargs):
         backbone = backbone.lower()
         self.num_boards = num_boards
         self.batch_size = batch_size
-        kwargs = {'num_iters': num_iters, 'cpuct': cpuct, 'verbose': 1,
+        kwargs = {'num_iters': num_iters, 'cpuct': cpuct, 'verbose': 0,
                   'max_node_num': max_node_num, 'noise_alpha': noise_alpha,
                   'noise_gamma': noise_gamma, 'gap': gap}
         weight_paths = sorted(WEIGHT_DIR.glob(f'{backbone}_*.pth'), key=str)
         self.mcts_list = [MonteCarloTreeSearch(get_model(backbone, weight_path), **kwargs)
                           for weight_path in weight_paths]
 
-    def self_play(self, mcts_1, mcts_2, boards, description=''):
+    def self_play(self, mcts_1, mcts_2, boards, description='', taus=1.0):
         batch_size = self.batch_size
         history_list = [board.history[:] for board in boards]
         players = [board.player for board in boards]
         records = OrderedDict()
-        for batch_start in range(0, len(boards), batch_size):
+        for batch_start in tqdm(range(0, len(boards), batch_size), description):
             batch_boards = boards[batch_start:batch_start + batch_size]
             pla_1, pla_2 = mcts_1, mcts_2
             while len(batch_boards):
-                visit_tables = pla_1.evaluate(batch_boards, description)
-                actions = pla_1.sample_actions(visit_tables, taus=1.0)
+                visit_tables = pla_1.evaluate(batch_boards)
+                actions = pla_1.sample_actions(visit_tables, taus=taus)
                 for index, board in list(enumerate(batch_boards)):
-                    record = (visit_tables[index], actions[index])
+                    visit_table = [(act, v) for act, v in
+                                   visit_tables[index].items() if v > 0]
+                    record = (visit_table, actions[index])
                     records.setdefault(board, list()).append(record)
                     if board.move(actions[index]).is_over:
                         batch_boards.remove(board)
@@ -330,154 +337,127 @@ class SelfPlayPipeline(object):
             wins_2 += float(board.winner == (1 - players[index]))
         return samples, wins_1 / len(boards), wins_2 / len(boards)
 
+    def evaluate(self, index_1, index_2):
+        boards = BOARD_GENERATOR(50)
+        win_ratio_1, win_ratio_2 = 0.0, 0.0
+        mcts_1 = self.mcts_list[index_1]
+        mcts_2 = self.mcts_list[index_2]
+        mcts_1.perturb_root = False
+        mcts_2.perturb_root = False
+        _, ws1, ws2 = self.self_play(mcts_1, mcts_2,
+                                     [board.copy() for board in boards],
+                                     f'{index_1} vs {index_2}', 0.0)
+        win_ratio_1 += ws1
+        win_ratio_2 += ws2
+        _, ws2, ws1 = self.self_play(mcts_2, mcts_1,
+                                     [board.copy() for board in boards],
+                                     f'{index_2} vs {index_1}', 0.0)
+        win_ratio_1 += ws1
+        win_ratio_2 += ws2
+        return win_ratio_1 / 2, win_ratio_2 / 2
 
-pl.seed_everything(100)
-sp = SelfPlayPipeline('SEWideResnet16_1', 10, 5)
-sp.self_play(sp.mcts_list[0], sp.mcts_list[0], BOARD_GENERATOR(10))
+    def get_best(self):
+        mcts_list = self.mcts_list
+        result_path = WEIGHT_DIR / 'results.json'
+        if not result_path.is_file():
+            results = {'best': 0, 'results': [[None]]}
+            utils.json_save(result_path, results)
+        results = utils.json_load(result_path)
+        if len(results['results']) == len(mcts_list):
+            return results['best']
+        for index in range(len(mcts_list)):
+            if index < len(results['results']):
+                continue
+            results['results'].append(list())
+            for target_index in range(index):
+                win_ratio_1, win_ratio_2 = self.evaluate(index, target_index)
+                results['results'][index].append(win_ratio_1)
+                results['results'][target_index].append(win_ratio_2)
+            results['results'][index].append(None)
+            best_index = results['best']
+            if results['results'][best_index][index] < \
+                    results['results'][index][best_index]:
+                results['best'] = index
+        utils.json_save(result_path, results)
+        return results['best']
 
-
-def get_random_actions(steps, gap=3):
-    if steps == 0:
-        return []
-    size = Board.BOARD_SIZE
-    actions = torch.rand(size ** 2).argsort().numpy().tolist()
-    random_actions = [(actions[0] // size, actions[0] % size)]
-    for action in actions[1:]:
-        if len(random_actions) == steps:
-            break
-        row, col = action // size, action % size
-        if any([abs(row - r) <= gap and abs(col - c) <= gap
-                for r, c in random_actions]):
-            random_actions.append((row, col))
-    return random_actions
-
-
-def self_play(model_1, model_2, num_boards, visit_times=200, cpuct=1.0, verbose=1,
-              max_node_num=100000, max_random_steps=5, prefix=''):
-    move = lambda bds, acts: list(map(lambda x: x[0].move(x[1]), list(zip(bds, acts))))
-    gc.collect()
-    boards = [Board(get_random_actions(random.randint(0, max_random_steps)))
-              for _ in range(num_boards)]
-    players = [board.player for board in boards]
-
-    mcts_1 = MCTS(model_1, boards, visit_times, cpuct,
-                  verbose, max_node_num)
-    actions = mcts_1.search(f'{prefix} step: 0')
-    move(boards, actions)
-    mcts_1.move(actions)
-
-    mcts_2 = MCTS(model_2, boards, visit_times, cpuct,
-                  verbose, max_node_num)
-
-    left_boards = boards[:]
-    for step in range(1, 225):
-        player = [mcts_1, mcts_2][step % 2]
-        actions = player.search(f'{prefix} step: {step:d}')
-        mcts_1.move(actions)
-        mcts_2.move(actions)
-        move(left_boards, actions)
-        left_boards = [board for board in left_boards if not board.is_over]
-        if len(left_boards) == 0:
-            break
-
-    return boards, sum(int(board.winner == player)
-                       for board, player in zip(boards, players))
-
-
-class SelfPlayPipeline(object):
-
-    def __init__(self, root_dir, model, num_boards, visit_times=200, cpuct=1.0,
-                 verbose=1, max_node_num=100000, max_random_steps=5, **kwargs):
-        self.__dict__.update({k: v for k, v in locals().items() if k != 'self'})
-        self.root_dir = Path(root_dir)
-        weight_dir = self.root_dir / 'weights'
-        weight_paths = sorted(weight_dir.glob(model.lower() + '*.pth'), key=str)
-        self.main_net = get_model(model, weight_paths[-1])
-        self.nets = [get_model(model, path) for path in weight_paths]
-
-    def run(self, prefix=''):
-        main_net = self.main_net
-        history_list = []
+    def run(self, description=''):
+        best = self.get_best()
+        best_mcts = self.mcts_list[best]
+        best_mcts.perturb_root = True
+        history_paths = sorted(HISTORY_DIR.glob('*.json'), key=str)
+        history_path = HISTORY_DIR / f'{len(history_paths):04d}.json'
+        if description:
+            description = f'{description}-{best}-{len(history_paths)}'
+        else:
+            description = f'{best}-{len(history_paths)}'
         start = time.time()
-        results = []
-        for index, net in enumerate(self.nets):
-            main_wins = 0
-            boards, wins = self_play(main_net, net, self.num_boards,
-                                     self.visit_times, self.cpuct,
-                                     self.verbose, self.max_node_num,
-                                     max_random_steps=self.max_random_steps,
-                                     prefix=f'{prefix} main vs net_{index}')
-            gc.collect()
-            history_list.extend([board.history for board in boards])
-            main_wins += wins
-
-            boards, wins = self_play(net, main_net, self.num_boards,
-                                     self.visit_times, self.cpuct,
-                                     self.verbose, self.max_node_num,
-                                     max_random_steps=self.max_random_steps,
-                                     prefix=f'{prefix} net_{index} vs main')
-            gc.collect()
-            history_list.extend([board.history for board in boards])
-            main_wins += len(boards) - wins
-
-            ratio = main_wins / float(2 * len(boards))
-            results.append(f'net {index}: {ratio:.4f}')
-
-        history_dir = self.root_dir / 'history'
-        history_dir.mkdir(parents=True, exist_ok=True)
-        index = len(list(history_dir.glob('*.json')))
-        utils.json_save(history_dir / f'{index:04d}.json', history_list)
-        num_actions = sum(len(his) for his in history_list)
-        print(f'{num_actions} actions stored, ' +
-              f'each action spends {(time.time() - start) / num_actions:.4f}')
-        results = ' | '.join(results)
-        print(results)
-        with open(history_dir / 'results.txt', 'a') as file:
-            file.write(f'{prefix} {results}\n')
+        samples, *_ = self.self_play(best_mcts, best_mcts,
+                                     BOARD_GENERATOR(self.num_boards),
+                                     description, taus=1.0)
+        total_time = time.time() - start
+        history_path.parents[0].mkdir(parents=True, exist_ok=True)
+        utils.json_save(history_path, samples)
+        num_samples = sum(len(records) for _, records in samples)
+        print(f'{num_samples} samples store, ' +
+              f'with each spending {total_time / num_samples:.4f}s')
 
 
 class Dataset(torch.utils.data.Dataset):
-    size = Board.BOARD_SIZE
-    num_stones = Board.BOARD_SIZE ** 2
 
-    def __init__(self, history_list, augmentation):
-        self.history_list = history_list
-        self.augmentation = augmentation
-        self.triples = []
-        for index, history in enumerate(history_list):
-            winner = Board(history).winner
-            for step in range(len(history)):
-                if winner not in [0, 1]:
-                    value = 0.0
-                else:
-                    value = 1.0 if (step % 2) == winner else -1.0
-                self.triples.append((index, step, value))
+    def __init__(self, container_size, tau=1.0):
+        self.history_list = []
+        self.quadruples = []
+        for history, records in self.sample_generator():
+            history = list(map(tuple, history))
+            actions = [tuple(record[1]) for record in records]
+            winner = Board(history + actions).winner
+            index = len(self.history_list)
+            self.history_list.append(history + actions)
+            for step, (visit_table, _) in enumerate(records, len(history)):
+                actions, visits = [], []
+                for act, v in visit_table:
+                    actions.append(act)
+                    visits.append(v ** (1.0 / tau))
+                total_visit = sum(visits)
+                visits = [v / total_visit for v in visits]
+                value = (float(winner == (step % 2)) - 0.5) * 2
+                self.quadruples.append((index, step, (actions, visits), value))
+            if len(self.quadruples) >= container_size:
+                break
+
+    @staticmethod
+    def sample_generator():
+        for path in sorted(HISTORY_DIR.glob('*.json'), key=lambda x: -int(x.stem)):
+            samples = utils.json_load(path)
+            for sample in samples:
+                yield sample
 
     def __len__(self):
-        return len(self.triples)
+        return len(self.quadruples)
 
     def __getitem__(self, item):
-        index, step, value = self.triples[item]
+        index, step, (actions, visits), value = self.quadruples[item]
         previous_actions = self.history_list[index][:step]
+        size = torch.Size([SIZE, SIZE])
 
         if step:
             indices = torch.LongTensor(list(zip(*previous_actions)))
             values = torch.LongTensor([(i % 2) - 2 for i in range(len(previous_actions))])
-            size = torch.Size([self.size, self.size])
             board_tensor = torch.sparse.LongTensor(indices, values, size).to_dense() + 2
         else:
-            board_tensor = torch.zeros(self.size, self.size).long() + 2
+            board_tensor = torch.zeros(SIZE, SIZE).long() + 2
         player = step % 2
-        action = MCTS.flatten(self.history_list[index][step])
 
-        if self.augmentation:
-            func = random.choice(list(utils.AUGMENTATION_FUNCS.values()))
-            board_tensor = func(board_tensor.unsqueeze(0)).squeeze(0)
-            action_tensor = F.one_hot(torch.LongTensor([action]), self.num_stones)
-            action_tensor = func(action_tensor.view(1, self.size, self.size))
-            action = torch.argmax(action_tensor.reshape(-1)).item()
+        indices = torch.LongTensor(list(zip(*actions)))
+        values = torch.FloatTensor(visits)
+        action_tensor = torch.sparse_coo_tensor(indices, values, size).to_dense()
 
-        return board_tensor, player, action, value
+        func = random.choice(list(AUGMENTATION_FUNCS))
+        board_tensor = func(board_tensor.unsqueeze(0)).squeeze(0)
+        action_tensor = func(action_tensor.unsqueeze(0)).reshape(-1)
+
+        return board_tensor, player, action_tensor, value
 
 
 class PolicyPipeline(pl.LightningModule):
@@ -486,25 +466,9 @@ class PolicyPipeline(pl.LightningModule):
         super(PolicyPipeline, self).__init__()
         self.save_hyperparameters()
         args = self.hparams
-
-        self.root_dir = utils.DATA_DIR / 'value_iteration' / 'v3'
-        self.data_dir = self.root_dir / 'history'
-        self.weight_dir = self.root_dir / 'weights'
-        weight_path = self.weight_dir / f'{args.model.lower()}_{args.model_index:02d}.pth'
+        weight_path = WEIGHT_DIR / f'{args.model.lower()}_{args.model_index:02d}.pth'
         self.model = get_model(args.model, weight_path)
-
-        self.dataset = self.make_dataset(args.container_size)
-
-    @staticmethod
-    def make_dataset(container_size):
-        history_list = []
-        root_dir = utils.DATA_DIR / 'value_iteration' / 'v3'
-        data_dir = root_dir / 'history'
-        for path in sorted(data_dir.glob('*.json'),
-                           key=str, reverse=True)[:container_size]:
-            history_list += [list(map(tuple, acts)) for acts in
-                             utils.json_load(path)]
-        return Dataset(history_list, True)
+        self.dataset = Dataset(args.container_size)
 
     def configure_optimizers(self):
         args = self.hparams
@@ -515,11 +479,11 @@ class PolicyPipeline(pl.LightningModule):
         return [optimizer], [schedule.get_scheduler(args, optimizer)]
 
     def training_step(self, batch, batch_idx):
-        *inputs, actions, values = batch
+        *inputs, action_tensors, values = batch
         pred_log, pred_val = self.model(inputs)
         losses = []
 
-        policy_loss = F.cross_entropy(pred_log, actions)
+        policy_loss = -(action_tensors * F.log_softmax(pred_log, -1)).sum(-1).mean()
         self.log('policy_loss', policy_loss, on_step=False, on_epoch=True)
         losses.append(policy_loss)
 
@@ -530,10 +494,9 @@ class PolicyPipeline(pl.LightningModule):
         return sum(losses)
 
     def train_dataloader(self):
-        args = self.hparams
         return torch.utils.data.DataLoader(
-            self.dataset, batch_size=args.batch_size,
-            shuffle=True, num_workers=2, drop_last=True
+            self.dataset, batch_size=128,
+            shuffle=True, num_workers=2
         )
 
     def val_dataloader(self):
@@ -541,8 +504,8 @@ class PolicyPipeline(pl.LightningModule):
 
     def on_fit_end(self):
         args = self.hparams
-        index = args.model_index + 1
-        weight_path = self.weight_dir / f'{args.model.lower()}_{index:02d}.pth'
+        index = args.next_model_index
+        weight_path = WEIGHT_DIR / f'{args.model.lower()}_{index:02d}.pth'
         torch.save(self.model.state_dict(), weight_path)
 
 
@@ -559,78 +522,54 @@ def parse_args():
     parser.add_argument('--lr_max', default=0.1, type=float)
     parser.add_argument('--lr_one_drop', default=0.01, type=float)
     parser.add_argument('--lr_drop_epoch', default=100, type=int)
-    parser.add_argument('--batch_size', default=128, type=int)
+    parser.add_argument('--epochs', default=200, type=int)
     # self play
-    parser.add_argument('--num_boards', default=5, type=int)
-    parser.add_argument('--container_size', default=20, type=int)
-    parser.add_argument('--num_kept_models', default=5, type=int)
-    parser.add_argument('--include_policy', action='store_true')
-    parser.add_argument('--visit_times', default=200, type=int)
-    parser.add_argument('--cpuct', default=1.0, type=float)
-    parser.add_argument('--verbose', default=1, type=int, choices=[0, 1])
+    parser.add_argument('--num_boards', default=100, type=int)
+    parser.add_argument('--batch_size', default=5, type=int)
+    parser.add_argument('--container_size', default=100000, type=int)
+    parser.add_argument('--num_iters', default=200, type=int)
+    parser.add_argument('--cpuct', default=2.5, type=float)
     parser.add_argument('--max_node_num', default=100000, type=int)
-    parser.add_argument('--max_random_steps', default=5, type=int)
     parser.add_argument('--rand_init', action='store_true')
+    parser.add_argument('--num_runs', default=10, type=int)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     pl.seed_everything(args.seed)
-    root_dir = utils.DATA_DIR / 'value_iteration' / 'v3'
-    weight_dir = root_dir / 'weights'
-    if not weight_dir.is_dir():
-        weight_dir.mkdir(parents=True, exist_ok=True)
+    if not WEIGHT_DIR.is_dir():
+        WEIGHT_DIR.mkdir(parents=True, exist_ok=True)
         if args.rand_init:
-            init_model = get_model(args.model)
+            trained_weight_path = ''
         else:
             trained_weight_path = utils.DATA_DIR / \
                                   f'weights/explore/ensemble/v1/{args.model.lower()}.pth'
-            init_model = get_model(args.model, trained_weight_path)
-        init_weight_path = weight_dir / f'{args.model.lower()}_{0:02d}.pth'
+        init_model = get_model(args.model, trained_weight_path)
+        init_weight_path = WEIGHT_DIR / f'{args.model.lower()}_{0:02d}.pth'
         torch.save(init_model.state_dict(), init_weight_path)
 
-    if torch.cuda.is_available():
-        gpus = 1
-        accelerator = 'dp'
-    else:
-        gpus = 0
-        accelerator = 'cpu'
-    default_root_dir = root_dir
-    data_dir = root_dir / 'history'
+    gpus = 1 if torch.cuda.is_available() else 0
+    accelerator = 'dp' if torch.cuda.is_available() else 'cpu'
 
     while True:
-        weight_paths = sorted(weight_dir.glob(f'{args.model.lower()}_*.pth'),
-                              key=str, reverse=True)
-        while len(weight_paths) > args.num_kept_models:
-            weight_paths.pop().unlink()
-        model_index = int(weight_paths[0].stem[-2:])
+        weight_paths = list(WEIGHT_DIR.glob(f'{args.model.lower()}_*.pth'))
+        num_weights = len(weight_paths)
 
-        num_batches = len(list(data_dir.glob('*.json')))
-        for index in range(num_batches, (model_index + 1) * args.container_size):
-            gc.collect()
-            prefix = f'{model_index}-{index}'
-            SelfPlayPipeline(root_dir, **args.__dict__).run(prefix)
-            gc.collect()
+        num_runs = len(list(HISTORY_DIR.glob('*.json')))
+        target_num_runs = num_weights * args.num_runs
+        sp = SelfPlayPipeline(args.model, **args.__dict__)
+        for index in range(num_runs, target_num_runs):
+            sp.run()
 
-        num_samples = len(PolicyPipeline.make_dataset(args.container_size))
-        if num_samples >= 10000:
-            epochs = 200
-        elif num_samples >= 1000:
-            epochs = 100
-        elif num_samples >= 100:
-            epochs = 50
-        elif num_samples >= 10:
-            epochs = 25
-        else:
-            epochs = 10
-        ppl = PolicyPipeline(**args.__dict__, version='2.0',
-                             model_index=model_index, epochs=epochs)
-        trainer = pl.Trainer(gpus=gpus, accelerator=accelerator, max_epochs=epochs,
-                             default_root_dir=default_root_dir)
+        ppl = PolicyPipeline(**args.__dict__, version='3.0',
+                             model_index=sp.get_best(),
+                             next_model_index=num_weights)
+        trainer = pl.Trainer(gpus=gpus, accelerator=accelerator,
+                             max_epochs=ppl.hparams.epochs,
+                             default_root_dir=ROOT_DIR)
         trainer.fit(ppl)
 
 
 if __name__ == '__main__':
-    # main()
-    pass
+    main()
