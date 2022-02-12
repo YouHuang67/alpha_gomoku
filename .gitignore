@@ -174,9 +174,6 @@ DartConfiguration.tcl
 # vscode
 .vscode/
 
-# cppboard
-board.py
-
 # data
 *.dat
 data/
