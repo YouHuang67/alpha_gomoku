@@ -107,14 +107,6 @@ class WideResNet(nn.Module):
         return self.fc(out).view(x.size(0), -1)
 
 
-def SEWideResNet16_1(drop_rate=0.0, reduction=1):
-    return WideResNet(16, 1, drop_rate, reduction)
-
-
-def SEWideResNet16_2(drop_rate=0.0, reduction=1):
-    return WideResNet(16, 2, drop_rate, reduction)
-
-
 class EnsembleOutput(nn.Module):
 
     def __init__(self):
@@ -127,3 +119,15 @@ class EnsembleOutput(nn.Module):
         out = self.fc(out).view(-1)
         out = torch.tanh(out)
         return x, out
+
+
+def SEWideResNet16_1(drop_rate=0.0, reduction=1):
+    return nn.Sequential(BoardToTensor(),
+                         WideResNet(16, 1, drop_rate, reduction),
+                         EnsembleOutput())
+
+
+def SEWideResNet16_2(drop_rate=0.0, reduction=1):
+    return nn.Sequential(BoardToTensor(),
+                         WideResNet(16, 2, drop_rate, reduction),
+                         EnsembleOutput())
