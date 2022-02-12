@@ -88,11 +88,10 @@ class WideResNet(nn.Module):
     def __init__(self, depth, widen_factor=1, drop_rate=0.0, reduction=16):
         assert((depth - 4) % 6 == 0)
         super(WideResNet, self).__init__()
-        nChannels = [16, 16 * widen_factor,
-                     32 * widen_factor, 64 * widen_factor]
-        n = (depth - 4) / 6
+        nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
+        n = (depth - 4) // 6
         self.conv1 = nn.Conv2d(3, nChannels[0], 3, 1, 1, bias=False)
-        self.block1 = NetworkBlock(n, *nChannels[:2], 1, drop_rate, reduction)
+        self.block1 = NetworkBlock(n, *nChannels[0:2], 1, drop_rate, reduction)
         self.block2 = NetworkBlock(n, *nChannels[1:3], 1, drop_rate, reduction)
         self.block3 = NetworkBlock(n, *nChannels[2:4], 1, drop_rate, reduction)
         self.bn1 = nn.BatchNorm2d(nChannels[3])
