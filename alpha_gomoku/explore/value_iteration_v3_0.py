@@ -548,7 +548,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    pl.seed_everything(args.seed)
+    # pl.seed_everything(args.seed)
     if not WEIGHT_DIR.is_dir():
         WEIGHT_DIR.mkdir(parents=True, exist_ok=True)
         if args.rand_init:
