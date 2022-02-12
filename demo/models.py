@@ -1,3 +1,5 @@
+import inspect
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -131,3 +133,10 @@ def SEWideResNet16_2(drop_rate=0.0, reduction=1):
     return nn.Sequential(BoardToTensor(),
                          WideResNet(16, 2, drop_rate, reduction),
                          EnsembleOutput())
+
+
+def get(model, **kwargs):
+    model_cls = {k.lower(): v for k, v in globals().items()}[model.lower()]
+    return model_cls(**{arg: kwargs[arg] for arg in
+                        inspect.getfullargspec(model_cls).args
+                        if arg in kwargs})
