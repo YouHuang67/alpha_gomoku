@@ -18,9 +18,13 @@ def get_player():
 
 def get_board_input(board):
     while True:
-        ipt = input(f'action: (row index) (col index), e.g., 7 7: ')
+        ipt = input('action: (row index) (col index), e.g., 7 7, '
+                    'or undo (-1): ')
         try:
-            row, col = tuple(map(int, ipt.split()))
+            ipt = ipt.split()
+            if len(ipt) == 1:
+                return int(ipt[0])
+            row, col = tuple(map(int, ipt))
             assert board.is_legal((row, col))
             return (row, col)
         except:
@@ -43,10 +47,15 @@ def main():
     player = get_player()
     board = Board()
     while not board.is_over:
-        print(board)
         if board.player == player:
-            action = get_board_input(board)
+            while True:
+                print(board)
+                action = get_board_input(board)
+                if isinstance(action, tuple):
+                    break
+                board = Board(board.history[:2 * action])
         else:
+            print(board)
             action = mcts.search(board)
             root = mcts.node_table.get(board.key, None)
             if root is None:
