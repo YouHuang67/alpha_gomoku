@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .cppboard import Board
 from .utils import WEIGHT_DIR
 from .utils import SIZE, NUM_STONES
 
