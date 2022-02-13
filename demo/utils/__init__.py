@@ -3,7 +3,7 @@ from pathlib import Path
 from .dihedral_reflection import *
 
 
-ROOT_DIR = Path(__file__).resolve().parents[0]
+ROOT_DIR = Path(__file__).resolve().parents[1]
 WEIGHT_DIR = ROOT_DIR / 'weights'
 SIZE, NUM_STONES = 15, 15 ** 2
 BLACK, WHITE, EMPTY = 0, 1, 2

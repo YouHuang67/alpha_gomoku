@@ -33,7 +33,7 @@ class NetWrapper(nn.Module):
         self.vicinity = Vicinity(gap)
 
     @staticmethod
-    def actions_to_tensors(actions):
+    def actions_to_tensor(actions):
         indices = torch.LongTensor(actions).transpose(0, 1)
         values = torch.ones(len(actions)).long()
         size = torch.Size([SIZE, SIZE])
@@ -46,21 +46,20 @@ class NetWrapper(nn.Module):
 
     @torch.no_grad()
     def forward(self, board):
-        board_tensor, player = self.boards_to_tensors(board)
+        board_tensor, player = self.board_to_tensor(board)
         legal_mask = (board_tensor == 2)
         index = random.randint(0, len(REFLECTION_FUNCS) - 1)
         func, inv_func = REFLECTION_FUNCS[index], INVERSE_FUNCS[index]
-        input = (func(board_tensor.unsqueeze(0)), player.unsqueeze(0))
-        logit, value = self.model(input)
+        logit, value = self.model((func(board_tensor.unsqueeze(0)), player))
         logit = inv_func(logit).view(SIZE, SIZE).detach()
 
         logit[~legal_mask] = -torch.inf
-        probs = F.softmax(logit.view(NUM_STONES), 0)
+        probs = F.softmax(logit.reshape(NUM_STONES), 0)
 
         mask = legal_mask & self.vicinity(~legal_mask)
         actions = board.copy().evaluate(1)
         if len(actions):
-            mask[~self.actions_to_tensors(actions).bool()] = False
+            mask[~self.actions_to_tensor(actions).bool()] = False
         mask = mask.view(NUM_STONES)
         probs /= (mask.float() * probs).sum()
 
