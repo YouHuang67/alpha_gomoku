@@ -1,3 +1,4 @@
+from ..utils import BOARD_SIZE
 from .board import BoardWrapper
 
 
@@ -5,44 +6,28 @@ __all__ = ['Board']
 
 
 class Board(object):
-    BOARD_SIZE = 15
-    STONE_NUM = BOARD_SIZE ** 2
-    BLACK = 0
-    WHITE = 1
-    EMPTY = 2
-    OPEN_FOUR = 1
-    FOUR = 2
-    OPEN_THREE = 3
-    THREE = 4
-    OPEN_TWO = 5
 
-    def __init__(self, history=None, cppboard=None):
-        if cppboard is None:
-            self.cppboard = BoardWrapper()
-        else:
-            self.cppboard = cppboard
+    def __init__(self, history=[]):
         self.history = []
         self.illegal_actions = set()
-        if history is not None:
-            for act in history:
-                self.move(act)
+        self.cppboard = BoardWrapper()
+        for act in history:
+            self.move(act)
                 
     def is_legal(self, action):
         return action not in self.illegal_actions
 
     def move(self, action):
         if not self.is_legal(action):
-            print(self)
-            print('action: ', action)
-            print('history: ', self.history)
-            exit()
+            raise Exception(f'Illegal action: {action} in board: {self} ' +
+                            f'with history {self.history}')
         self.cppboard.Move(self.action_flatten(*action))
         self.history.append(action)
         self.illegal_actions.add(action)
         return self
 
-    def evaluate(self, max_node_num=100000):
-        actions = self.cppboard.Evaluate(max_node_num)
+    def evaluate(self, max_num_nodes=100000):
+        actions = self.cppboard.Evaluate(max_num_nodes)
         return [self.action_unflatten(act) for act in actions]
 
     def copy(self):
@@ -101,18 +86,18 @@ class Board(object):
         if len(self.history):
             players[self.history[-1]] = {0: '@', 1: '%'}[len(self.history) % 2]
         board_string = '  '
-        for col in range(self.BOARD_SIZE):
+        for col in range(BOARD_SIZE):
             if col < 10:
                 board_string += '  '
             else:
                 board_string += ' 1'
         board_string += '\n  '
-        for col in range(self.BOARD_SIZE):
+        for col in range(BOARD_SIZE):
             board_string += f' {col%10:d}'
         board_string += '\n'
-        for row in range(self.BOARD_SIZE):
+        for row in range(BOARD_SIZE):
             board_string += f'{row:2d}'
-            for col in range(self.BOARD_SIZE):
+            for col in range(BOARD_SIZE):
                 board_string += ' '
                 board_string += players.get((row, col), '_')
             board_string += '\n'
