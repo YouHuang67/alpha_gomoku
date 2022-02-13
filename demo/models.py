@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .cppboard import Board
+from .utils import WEIGHT_DIR
 
 
 class BoardToTensor(nn.Module):
@@ -51,8 +52,7 @@ class BasicBlock(nn.Module):
         self.drop_rate = drop_rate
         self.equalInOut = (in_planes == out_planes)
         self.convShortcut = (not self.equalInOut) and \
-                            nn.Conv2d(in_planes, out_planes, 1,
-                                      stride, 0, bias=False) or None
+            nn.Conv2d(in_planes, out_planes, 1, stride, 0, bias=False) or None
         self.se_layer = SELayer(out_planes, reduction)
 
     def forward(self, x):
@@ -135,8 +135,10 @@ def SEWideResNet16_2(drop_rate=0.0, reduction=1):
                          EnsembleOutput())
 
 
-def get(model, **kwargs):
-    model_cls = {k.lower(): v for k, v in globals().items()}[model.lower()]
-    return model_cls(**{arg: kwargs[arg] for arg in
-                        inspect.getfullargspec(model_cls).args
-                        if arg in kwargs})
+def get(model_name, **kwargs):
+    func = {k.lower(): v for k, v in globals().items()}[model_name.lower()]
+    args = inspect.getfullargspec(func).args
+    model = func(**{arg: kwargs[arg] for arg in set(args) & set(kwargs)})
+    weight_path = WEIGHT_DIR / f'{model_name.lower()}.pth'
+    model.load_state_dict(torch.load(weight_path, map_location='cpu'))
+    return model
