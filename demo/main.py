@@ -1,6 +1,5 @@
 import argparse
 
-from demo.utils import SIZE
 from demo.models import get
 from demo.cppboard import Board
 from demo.mcts import MonteCarloTreeSearch
