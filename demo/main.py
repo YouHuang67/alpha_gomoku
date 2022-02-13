@@ -18,8 +18,8 @@ def get_player():
 
 def get_board_input(board):
     while True:
-        ipt = input('action: (row index) (col index), e.g., 7 7, '
-                    'or undo (-1): ')
+        ipt = input('action: (row id) (col id) like 7 7, '
+                    'or undo n steps (-n): ')
         try:
             ipt = ipt.split()
             if len(ipt) == 1:
