@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 from .cppboard import Board
 from .utils import WEIGHT_DIR
+from .utils import SIZE, NUM_STONES
 
 
 class BoardToTensor(nn.Module):
@@ -106,18 +107,18 @@ class WideResNet(nn.Module):
         out = self.block2(out)
         out = self.block3(out)
         out = self.relu(self.bn1(out))
-        return self.fc(out).view(x.size(0), -1)
+        return self.fc(out).view(-1, SIZE, SIZE)
 
 
 class EnsembleOutput(nn.Module):
 
     def __init__(self):
         super(EnsembleOutput, self).__init__()
-        self.bn = nn.BatchNorm1d(Board.BOARD_SIZE ** 2)
-        self.fc = nn.Linear(Board.BOARD_SIZE ** 2, 1, bias=True)
+        self.bn = nn.BatchNorm1d(NUM_STONES)
+        self.fc = nn.Linear(NUM_STONES, 1, bias=True)
 
     def forward(self, x):
-        out = self.bn(x.view(x.size(0), -1))
+        out = self.bn(x.view(-1, NUM_STONES))
         out = self.fc(out).view(-1)
         out = torch.tanh(out)
         return x, out
@@ -141,4 +142,4 @@ def get(model_name, **kwargs):
     model = func(**{arg: kwargs[arg] for arg in set(args) & set(kwargs)})
     weight_path = WEIGHT_DIR / f'{model_name.lower()}.pth'
     model.load_state_dict(torch.load(weight_path, map_location='cpu'))
-    return model
+    return model.eval()

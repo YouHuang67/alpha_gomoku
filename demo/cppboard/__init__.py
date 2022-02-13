@@ -1,4 +1,4 @@
-from ..utils import BOARD_SIZE
+from ..utils import SIZE
 from .board import BoardWrapper
 
 
@@ -86,18 +86,18 @@ class Board(object):
         if len(self.history):
             players[self.history[-1]] = {0: '@', 1: '%'}[len(self.history) % 2]
         board_string = '  '
-        for col in range(BOARD_SIZE):
+        for col in range(SIZE):
             if col < 10:
                 board_string += '  '
             else:
                 board_string += ' 1'
         board_string += '\n  '
-        for col in range(BOARD_SIZE):
+        for col in range(SIZE):
             board_string += f' {col%10:d}'
         board_string += '\n'
-        for row in range(BOARD_SIZE):
+        for row in range(SIZE):
             board_string += f'{row:2d}'
-            for col in range(BOARD_SIZE):
+            for col in range(SIZE):
                 board_string += ' '
                 board_string += players.get((row, col), '_')
             board_string += '\n'
