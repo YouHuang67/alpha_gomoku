@@ -363,23 +363,39 @@ class SelfPlayPipeline(object):
             results = {'best': 0, 'results': [[None]]}
             utils.json_save(result_path, results)
         results = utils.json_load(result_path)
-        if len(results['results']) == len(mcts_list):
-            return results['best']
         for index in range(len(mcts_list)):
-            if index < len(results['results']):
-                continue
-            results['results'].append(list())
-            for target_index in range(index):
-                win_ratio_1, win_ratio_2 = self.evaluate(index, target_index)
-                results['results'][index].append(win_ratio_1)
-                results['results'][target_index].append(win_ratio_2)
-            results['results'][index].append(None)
-            best_index = results['best']
-            if results['results'][best_index][index] < \
-                    results['results'][index][best_index]:
-                results['best'] = index
+            while len(results['results']) <= index:
+                results['results'].append([None] * len(mcts_list))
+            results['results'][index] += [None] * (len(mcts_list) -
+                                                   len(results['results'][index]))
+        for index in range(len(mcts_list)):
+            for target_index in range(len(mcts_list)):
+                if index == target_index:
+                    continue
+                if results['results'][index][target_index] is None or \
+                        results['results'][target_index][index] is None:
+                    win_ratio_1, win_ratio_2 = self.evaluate(index,
+                                                             target_index)
+                    results['results'][index][target_index] = win_ratio_1
+                    results['results'][target_index][index] = win_ratio_2
+                utils.json_save(result_path, results)
+
+        best = len(mcts_list) - 1
+        for index in range(len(mcts_list)):
+            is_best = True
+            for target_index in range(len(mcts_list)):
+                if index == target_index:
+                    continue
+                if results['results'][index][target_index] <= \
+                        results['results'][target_index][index]:
+                    is_best = False
+                    break
+            if is_best:
+                best = index
+                break
+        results['best'] = best
         utils.json_save(result_path, results)
-        return results['best']
+        return best
 
     def run(self, description=''):
         best = self.get_best()
