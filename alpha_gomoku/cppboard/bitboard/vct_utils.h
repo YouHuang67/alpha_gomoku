@@ -143,7 +143,15 @@ BoardValue VCTBoard::Evaluate(StoneType attacker, UC* actions) const
             for (int j = 1; j <= threeActionsAtRow[0]; j++)
                 if (col == threeActionsAtRow[j])
                 {
-                    actions[++actions[0]] = ActionFlatten(row, col);
+                    UC action = ActionFlatten(row, col);
+                    // to check if the three is effective
+                    static UC tempActions[STONE_NUM + 1];
+                    VCTBoard board(*this);
+                    board.Move(action);
+                    board.Evaluate(attacker, tempActions);
+                    board.Move(tempActions[1]);
+                    if (POSITIVE != board.Evaluate(attacker, tempActions)) continue;
+                    actions[++actions[0]] = action;
                     return POSITIVE;
                 }
         }
