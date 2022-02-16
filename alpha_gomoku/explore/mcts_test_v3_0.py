@@ -1,6 +1,8 @@
 import argparse
 from tqdm import tqdm
 
+import pytorch_lightning as pl
+
 from alpha_gomoku import utils
 from alpha_gomoku.explore import value_iteration_v3_0 as vi
 
@@ -31,6 +33,7 @@ def self_play(mcts_1, mcts_2, boards, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--model_1', type=str, required=True)
     parser.add_argument('--model_2', type=str, required=True)
     parser.add_argument('--path_1', type=str, required=True)
@@ -46,13 +49,14 @@ def main():
     args = parse_args()
     args.verbose = 0
     args.perturb = False
+    pl.seed_everything(args.seed)
+    boards = vi.BoardGenerator()(args.num_boards)
     mcts_1 = vi.MonteCarloTreeSearch(vi.get_model(args.model_1,
                                                   utils.ROOT / args.path_1),
                                      **args.__dict__)
     mcts_2 = vi.MonteCarloTreeSearch(vi.get_model(args.model_2,
                                                   utils.ROOT / args.path_2),
                                      **args.__dict__)
-    boards = vi.BoardGenerator()(args.num_boards)
     wins_1, wins_2 = 0, 0
     w1, w2 = self_play(mcts_1, mcts_2, boards, args.batch_size)
     wins_1 += w1
